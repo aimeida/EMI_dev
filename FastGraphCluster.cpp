@@ -148,7 +148,6 @@ void FastGraphCluster::fastClusterCore()
 {
   int i=0, seedn=5;      
   set<int> result, changed;
-
   while (!seedArray->empty() && seedArray->top >= m_nLowerSize-1) {
     FibonacciHeap heap;	// local expanding heap
     i = seedArray->getMax();
@@ -156,26 +155,21 @@ void FastGraphCluster::fastClusterCore()
     cout << cur_pos << "\t" << result.size() << endl;
     
     //cout << "minIndex "<< heap.getMin().index << endl;    
-    /* for debug
-    if (cur_pos == 600000){
-    cout << result.size() << "\t";
-      for (set <int>::iterator j=result.begin(); j!=result.end(); j++)
-        cout << vertexName[*j] << "\t";
-      cout << endl;
-    }
-    ////    DebugFunc::printVec(heap.current_node_id);    
-    */
-
-    set<int> surround;
     if (heap.m_nNode > 0){ // there are nodes left after the core
+      set< set <int> > core_ext; 
+      set<int> surround;
       srand(time(NULL));
       for (int dn=0; dn<seedn; dn++){
 	extendCore(surround, result, heap.current_node_id, dn); 
-	//cout << "surround1 " << surround.size() << endl;
+	core_ext.insert(surround);
 	surround.clear();
       }
+//    if(core_ext.size() > 1 ){
+//	cout << "variation " << core_ext.size() << endl;
+//	for (set< set <int> >::iterator i=core_ext.begin(); i!=core_ext.end(); i++)
+//	  DebugFunc::printVec(*i); 
+//      }
     }
-
     result.clear();
     for ( set<int>::iterator iter = changed.begin() ; iter != changed.end() ; iter++ ) {
       i = *iter;
@@ -230,7 +224,6 @@ int FastGraphCluster::expandCore(int index, set<int> &result, FibonacciHeap &hea
   // for the expanding procedure, definitely select this edge first
   m_neighbor[index][maxindex]->weight += maxWeight;
   
-  //cout << "index maxindex " << index << " " << maxindex << endl;
   while (!heap.empty())
     {
       ptr = heap.extractMin();
@@ -306,7 +299,6 @@ void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int
     //// fixme: use esum for now, change to wsum later if I'm not lazy
     //cout << "key.wsum " << ptr->key.wsum << " " << ptr->key.esum << " " << *i << endl;
     ptr->key.wsum = addVar((float)ptr->key.esum);
-    
     heapExt.insert(ptr);
     current_heap.insert(*i);
   }
@@ -336,19 +328,16 @@ void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int
     for (map<int, EdgeInfo*>::iterator imap = m_neighbor[imin].begin(); imap!=m_neighbor[imin].end(); imap++){
       int j = imap->first;
       // fixme, should i change m_neighbor[imin]? namely, delete all memebers in the core? faster?
-      ptr = m_pHeapNode[j];  // only used to remember wsum(UNEXPLORED) and esum(0)
+      ptr = m_pHeapNode[j];  // only used to keep wsum(UNEXPLORED) and esum(0)
       if ( ptr==NULL) continue;
       if ( surround.find(j)!=surround.end() || node_id.find(j)!=node_id.end()) continue; 
-      //DebugFunc::printVec(surround);
-      float w = (imap->second)->weight;
+      float w = addVar((imap->second)->weight);
       if ( current_heap.find(j)==current_heap.end()){
-	//cout << "addvalue1 " << imin << " " << j << endl;
 	ptr->key.wsum = w;
 	ptr->key.esum = 1;
 	heapExt.insert(ptr);
 	current_heap.insert(j);
       }else{
-	//cout << "addvalue2 " << imin << " " << j << endl;
 	heapExt.decrease(ptr,HeapNode( ptr->key.wsum+w,j,ptr->key.esum+1));
       }
     }
