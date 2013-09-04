@@ -1,0 +1,26 @@
+1. use count to predict missing IBD pairs 
+2. may have to delete heap or release memory
+
+Parts B and E show 
+ power to detect IBD as a function of the underlying size of the true IBD segment.  The average 
+ proportion of the segment that is detected is shown on the y-axis. ## no overlap is accounted in the average
+
+
+####################
+### comments for the code
+####################
+Fast*.h: 
+  HeapNode => index, wsum, esum
+Fibo*.h 
+  FiboNode(HeapNode, many_pointers)
+emi.h
+EdgeInfo(float weight, size_t p0, size_t p1)
+
+####### time 
+den=0.8,n_var = 5
+19760 tmp
+Time elapsed: 2130.92 -- 2256.68 miliseconds
+
+#### use clstID to avoid re-build:
+den=0.8,n_var = 5
+Time elapsed: 1313.23 miliseconds

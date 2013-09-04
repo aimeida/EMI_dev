@@ -41,7 +41,6 @@ class FastGraphCluster
   friend class DebugFunc;
   void updateInput(list<Pairmatch * > &active_matches);
   void fastClusterCore();
-  //void fastCluster(ofstream& fout);
   map <int, EdgeInfo* > *m_neighbor;
   map <int, Cluster* > result_clst;
 
@@ -66,5 +65,4 @@ class FastGraphCluster
 	void extendCore(set<int> &surround,set<int> &core_id, set<int> &node_id, int dn);
 	float getWeight(float edgeweight,float vertexweight, float seedW=NULL);
 	void deleteClst(int cid, Cluster * i_clst=NULL);
-	bool checkClst(Cluster * cl); // check if density and size satisfy
 };

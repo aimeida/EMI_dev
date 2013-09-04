@@ -40,19 +40,11 @@ FastGraphCluster::~FastGraphCluster(void)
       delete ci->second;
 }
 
-bool FastGraphCluster::checkClst(Cluster * cl)
-{
-  int ai = cl->nodes.size(); // old version, -1
-  if(ai < m_nLowerSize || ai*(ai-1)/2.0*m_dLowDen > (float) cl->n_edge)
-    return false;
-  return true;
-}
-
 void FastGraphCluster::deleteClst(int cid, Cluster * i_clst /*=NULL*/)
 {
-  if (i_clst==NULL) i_clst = result_clst[cid];  // sometimes too lazy to pass the pointer
+  if (i_clst==NULL) i_clst = result_clst[cid];  // sometimes too lazy to pass the pointer                  
   for (set<int>::iterator i =i_clst->nodes.begin(); i!=i_clst->nodes.end(); i++)
-    clstID[*i] = -1; 
+    clstID[*i] = -1;
   delete i_clst;
   result_clst.erase(cid);
 }
@@ -73,11 +65,10 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
   int ci, ai;
   for (vector< pair <int, int > >::iterator i=delEdge.begin();i!=delEdge.end();i++)
     {
-      ci=clstID[(*i).first];
       // edges to delete within cluster
-      if ( ci > -1 &&  ci==clstID[(*i).second]){
+      ci=clstID[(*i).first];      
+      if ( ci > -1 &&  ci==clstID[(*i).second])
 	addKey(changed_clst, ci);
-      }
     }  
   if (!addEdge.empty()){
     for (vector< pair <int, int > >::iterator i=addEdge.begin();i!=addEdge.end();i++)
@@ -99,13 +90,7 @@ void FastGraphCluster::printAllClst(ofstream& fout)
   for (map <int, Cluster* >::iterator ci=result_clst.begin(); ci!=result_clst.end(); ci++)
     {   
       Cluster * cl = ci->second;
-      if (cl->n_edge < 3) continue; // at least 3 edges 
-#ifdef DEBUG
-      fout << ci->first << "\t" << cur_pos_start << "\t" << cur_pos <<"\t" << cl->n_edge << "\t" << cl->nodes.size() << "\t";
-#else
-      fout << "clst" << "\t" << cur_pos_start << "\t" << cur_pos <<"\t";
-#endif
-
+      fout << ci->first << "\t" << cur_pos_start << "\t" << cur_pos << "\t" << cl->nodes.size() << "\t";
       for (set <int>::iterator j=cl->nodes.begin(); j!=cl->nodes.end(); j++)
 	fout << vertexName[*j] << "\t";
       fout << endl;
@@ -114,7 +99,6 @@ void FastGraphCluster::printAllClst(ofstream& fout)
 
 void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
 {
-
   int i;
   float *nw = neighborWeightCnt;
   FiboNode *mp2;
@@ -142,8 +126,6 @@ void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
   seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);
 }
 
-// return newly created coreClusters in current window
-// fix me: old clusters from previous windows are not updated yet
 void FastGraphCluster::fastClusterCore()
 {
   int i=0, seedn=5;      
@@ -152,9 +134,9 @@ void FastGraphCluster::fastClusterCore()
     FibonacciHeap heap;	// local expanding heap
     i = seedArray->getMax();
     expandCore(i, result, heap, changed);
-    cout << cur_pos << "\t" << result.size() << endl;
-    
-    //cout << "minIndex "<< heap.getMin().index << endl;    
+    //cout << cur_pos << "\t" << result.size() << endl;
+    //cout << cur_pos << "\t" << result.size() << " " << clstID[*result.begin()]<< endl;
+
     if (heap.m_nNode > 0){ // there are nodes left after the core
       set< set <int> > core_ext; 
       set<int> surround;
@@ -168,8 +150,10 @@ void FastGraphCluster::fastClusterCore()
 //	cout << "variation " << core_ext.size() << endl;
 //	for (set< set <int> >::iterator i=core_ext.begin(); i!=core_ext.end(); i++)
 //	  DebugFunc::printVec(*i); 
-//      }
+//      }    
     }
+
+    heap.current_node_id.clear();
     result.clear();
     for ( set<int>::iterator iter = changed.begin() ; iter != changed.end() ; iter++ ) {
       i = *iter;
@@ -179,7 +163,7 @@ void FastGraphCluster::fastClusterCore()
       }
     }
     changed.clear();
-    heap.current_node_id.clear();
+
     // fix me, when to delete heap ??
   }
   if (!seedArray->empty())
@@ -272,6 +256,12 @@ int FastGraphCluster::expandCore(int index, set<int> &result, FibonacciHeap &hea
       }
     }
   m_neighbor[index][maxindex]->weight -= maxWeight;
+
+  if (result.size() >= m_nLowerSize){
+    for (set<int>::iterator ni=result.begin();ni!=result.end();ni++)
+      clstID[*ni] = clst_topindex;
+    result_clst[clst_topindex++] = new Cluster(result);
+  }
   return 1;
 }
 

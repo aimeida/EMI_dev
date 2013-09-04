@@ -242,7 +242,8 @@ int main( int argc , char * argv[] )
        cluster.fastClusterCore(); // find core clusters with density of 1
        
        ///cluster.printAllClst(fout);
-       ///cout << cur_pos_start << " # " << cur_pos << endl;       
+       //cout << cur_pos_start << " # " << cur_pos << endl;       
+
        ///size_t n_used = DebugFunc::numOfLeftPairs(cluster);
        ///cout << cur_pos_start << "# " << active_matches.size() << "# " << n_used << " ";
        ///cout << n_used/(float)active_matches.size() << endl;       
