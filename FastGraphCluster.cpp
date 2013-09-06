@@ -49,13 +49,41 @@ void FastGraphCluster::deleteClst(int cid, Cluster * i_clst /*=NULL*/)
   result_clst.erase(cid);
 }
 
+void FastGraphCluster::initMisFlag()
+{
+  map <pair<int, int>, MisPair*>::iterator i;
+  for (i=misPairs.begin(); i!=misPairs.end(); i++)
+    (i->second)->flag = 0;
+}
+
+void FastGraphCluster::printMissing(float minLen)
+{
+  // don't erase while iterating, may cause problem
+  //cerr << "m3\t" << cur_pos << "\t" << misPairs.size() << endl;
+  vector <map <pair<int, int>, MisPair* >::iterator> rms;
+  for (map <pair<int, int>, MisPair* >::iterator i=misPairs.begin(); i!=misPairs.end(); i++){
+    if ((i->second)->flag == 0){ 
+      if ((i->second)->p_end - (i->second)->p_start >= minLen){ 
+	cout << vertexName[(i->first).first] << "\t" << vertexName[(i->first).second] << "\t";
+	cout << (i->second)->p_start << "\t" << (i->second)->p_end << endl; 
+      }
+      rms.push_back(i);
+    }
+  }
+  vector <map <pair<int, int>, MisPair* >::iterator>::iterator ri;
+  for (ri=rms.begin(); ri!=rms.end();ri++){
+    delete (*ri)->second;
+    misPairs.erase(*ri);
+  }
+}
+
 template <class K, class V> 
-void addKey(map <K,V> &m, K key)
+void addKey(map <K,V> &m, K key, int cnt=1)
 {
   typename map <K,V>::iterator it;
   if ((it=m.find(key)) == m.end()) {
-    m[key] = 1;
-  } else it->second++;
+    m[key] = cnt;
+  } else (it->second) += cnt;
 }
 
 void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pair <int, int > > &addEdge)
@@ -126,31 +154,77 @@ void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
   seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);
 }
 
-void FastGraphCluster::fastClusterCore()
+void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, ofstream& fout1)
 {
-  int i=0, seedn=5;      
+  int i=0;
   set<int> result, changed;
+  int freq_thn = (int) seedn * freq_th;
+  //cerr << "freq_thn " << freq_thn << endl;
   while (!seedArray->empty() && seedArray->top >= m_nLowerSize-1) {
     FibonacciHeap heap;	// local expanding heap
-    i = seedArray->getMax();
-    expandCore(i, result, heap, changed);
-    //cout << cur_pos << "\t" << result.size() << endl;
-    //cout << cur_pos << "\t" << result.size() << " " << clstID[*result.begin()]<< endl;
+    i = seedArray->getMax();   
+    buildCore(i, result, heap, changed); // update clst_topindex, added to result_clst
+    // make sure  with\out extension, core stays the same.
+    fout1 << cur_pos << "\t" << result.size() << endl; 
 
     if (heap.m_nNode > 0){ // there are nodes left after the core
-      set< set <int> > core_ext; 
+      map< set <int>, int > core_ext;  // count number of times it appears
       set<int> surround;
-      srand(time(NULL));
+      //srand(time(NULL));
+      srand(0);
       for (int dn=0; dn<seedn; dn++){
 	extendCore(surround, result, heap.current_node_id, dn); 
-	core_ext.insert(surround);
+	if (!surround.empty())
+	  addKey(core_ext, surround);
 	surround.clear();
       }
-//    if(core_ext.size() > 1 ){
-//	cout << "variation " << core_ext.size() << endl;
-//	for (set< set <int> >::iterator i=core_ext.begin(); i!=core_ext.end(); i++)
-//	  DebugFunc::printVec(*i); 
-//      }    
+      
+      // missing edges within core_ext
+      if(!core_ext.empty()){
+	//cerr << "size1 "<< core_ext.size() << " " << (*core_ext.begin()).size()<< endl;
+	map<pair<int,int>, int> pairCount;   
+	set<int>::iterator ai,ci,bi;  
+	for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++){
+	  if ((i->first).size() <= 1) continue;
+	  ci = (i->first).end();
+	  ci--;
+	  for (ai=(i->first).begin();ai!=ci;ai++){
+	    bi = ai;
+	    bi++;
+	    for (;bi!=(i->first).end();bi++)  // keys are sorted, *ai < *bi,  i hope..
+	      addKey(pairCount, make_pair(*ai, *bi), i->second); // look up expensive
+	  }
+	}
+
+	/*
+	for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++){ 
+	  cerr << (pi->first).first <<" " << (pi->first).second << " "<< pi->second << endl;
+	}
+	exit(0); */
+
+	MisPair * p_pair;
+	map <pair<int, int>, MisPair* >::iterator mi;
+	for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++){
+	  if (pi->second < freq_thn) continue; //must be frequent enough
+	  int id1=(pi->first).first; 
+	  int id2=(pi->first).second;
+	  mi = misPairs.find(pi->first);
+	  // if exist in pre-window, update position
+	  if (mi != misPairs.end()) { 
+	    (mi->second)->p_end = cur_pos; 
+	    (mi->second)->flag = 1;	    
+	  } else { // fixme: window as position for now
+	    // if not exist in pre-window and not reported, create new
+	    if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
+	      p_pair = new MisPair(cur_pos_start, cur_pos, 1);
+              misPairs[pi->first] = p_pair;
+	    }
+	  }
+	}
+	pairCount.clear();
+	
+      }    
+      // done with update missing edges
     }
 
     heap.current_node_id.clear();
@@ -163,11 +237,14 @@ void FastGraphCluster::fastClusterCore()
       }
     }
     changed.clear();
-
     // fix me, when to delete heap ??
   }
+  
   if (!seedArray->empty())
     delete seedArray;
+  
+  printMissing(minLen);
+  initMisFlag();
 }
 
 // used to select the seed node pair
@@ -179,7 +256,7 @@ float FastGraphCluster::getWeight(float edgeWeight,float vertexWeight, float see
 }
 
 // create core clusters with density==1
-int FastGraphCluster::expandCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed)
+int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed)
 {
   int tEdge=0, imin, i,j,w3, nVertex = 0;
   float density,increase,w,oldWeight;
@@ -230,17 +307,15 @@ int FastGraphCluster::expandCore(int index, set<int> &result, FibonacciHeap &hea
       
       for (imap = m_neighbor[imin].begin(); imap!=m_neighbor[imin].end(); imap++){
 	j = imap->first;
-	//cout << "size" << m_neighbor[imin].size() << " " << j << endl;
         w = (imap->second)->weight;
         ptr = m_pHeapNode[j];
 	if (ptr==NULL) continue;
-	//cout << "UNEXP " << ptr->key.index << endl;
 	if (ptr->key.wsum == UNEXPLORED){
 	  ptr->key.wsum = w;
 	  ptr->key.esum = 1;
 	  heap.insert(ptr);
 	}else {
-	  //cout << "ptr "<< ptr->key.index << " " << ptr->key.wsum << " " << ptr->key.esum  << endl;
+	//cerr << "ptr "<< ptr->key.index << " " << ptr->key.wsum << " " << ptr->key.esum  << endl;
 	  heap.decrease(ptr,HeapNode( ptr->key.wsum+w,j,ptr->key.esum+1));
 	}
           
@@ -269,7 +344,7 @@ int FastGraphCluster::expandCore(int index, set<int> &result, FibonacciHeap &hea
 float addVar(float v0)
 {
   float r = 1-(float)(rand()%100)*0.002; // [0,99]==>[0.8,1]
-  ////return v0 * 0.9; // debug
+  //return v0 * 0.9; // debug
   if (v0==0) {
     cerr << "can't be 0 " << endl;
     exit(0);
@@ -287,7 +362,7 @@ void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int
   for (set<int>::iterator i = node_id.begin();i!=node_id.end();i++){
     ptr = m_pHeapNode[*i];
     //// fixme: use esum for now, change to wsum later if I'm not lazy
-    //cout << "key.wsum " << ptr->key.wsum << " " << ptr->key.esum << " " << *i << endl;
+    //cerr << "key.wsum " << ptr->key.wsum << " " << ptr->key.esum << " " << *i << endl;
     ptr->key.wsum = addVar((float)ptr->key.esum);
     heapExt.insert(ptr);
     current_heap.insert(*i);
@@ -302,11 +377,9 @@ void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int
     es = ptr->key.esum; 
     tEdge += es;
     nVertex ++;
-    ////cout << "### " << nVertex << " " << tEdge << endl;
     if (nVertex > 1) {
       density = 2.0*tEdge/(nVertex*(nVertex-1));
       increase = es/(density*(nVertex-1)); 
-      //// cout << "### " << density << " " << increase << endl;
       // if ( density < m_dLowDen || increase < m_dLowerIncrease){
       if ( density < m_dLowDen ) {
 	nVertex--;

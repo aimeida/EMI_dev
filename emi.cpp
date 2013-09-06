@@ -1,5 +1,9 @@
 #include "emi.h"
 
+int seedn = 5;
+//float freq_th = 0.6;
+float freq_th = 0.8;
+float WINDOW_SIZE_nfold = 2.; // at least that long to be printed (as missing pairs)
 float MIN_CLUSTER_DENSITY = 0.6f;
 float MIN_WEIGHT = 0.8; 
 int MIN_GRAPH_SIZE = 3;
@@ -202,7 +206,7 @@ int main( int argc , char * argv[] )
   size_t ncluster;
   float min_end;
 
-   ofstream fout((CLUSTER_FILE+".clst.tmp").c_str());
+   ofstream fout1((CLUSTER_FILE+".clst.tmp").c_str());
 
    vector< pair <int, int > > delEdge;
    vector< pair <int, int > > addEdge;
@@ -239,16 +243,12 @@ int main( int argc , char * argv[] )
        delEdge.clear();
        addEdge.clear();
        cluster.updateInput(active_matches);
-       cluster.fastClusterCore(); // find core clusters with density of 1
-       
-       ///cluster.printAllClst(fout);
-       //cout << cur_pos_start << " # " << cur_pos << endl;       
+       cluster.fastClusterCore(seedn, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
 
+       //cout << cur_pos_start << " # " << cur_pos << endl;       
        ///size_t n_used = DebugFunc::numOfLeftPairs(cluster);
-       ///cout << cur_pos_start << "# " << active_matches.size() << "# " << n_used << " ";
        ///cout << n_used/(float)active_matches.size() << endl;       
        cur_pos_start = cur_pos;
-       //exit(0);
      }
 
    // some segment left in the very end 
@@ -274,21 +274,16 @@ int main( int argc , char * argv[] )
      cluster.dissolve(delEdge, addEdge); 
      delEdge.clear();
      cluster.updateInput(active_matches);
-     cluster.fastClusterCore(); 
-     //cluster.printAllClst(fout);
-
-     
+     cluster.fastClusterCore(seedn, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
      //cout << cur_pos_start << " # " << cur_pos << endl;
-     //size_t n_used = DebugFunc::numOfLeftPairs(cluster);
-     //cout << cur_pos_start << "# " << active_matches.size()<< "# " << n_used << " ";
      //cout << n_used/(float)active_matches.size() << endl;       
      cur_pos_start = cur_pos;
    }
 
    long end = myclock();
-   cout << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
+   cerr << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
    of_log << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
    of_log.close();
-   fout.close();
+   fout1.close();
    return 0;
 }

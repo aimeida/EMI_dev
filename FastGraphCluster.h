@@ -17,6 +17,7 @@ class DegreeArray;
 class Pairmatch; 
 class Cluster;
 class EdgeInfo;
+class MisPair;
 class FibonacciHeap; 
 
 // node used in heuristic vertex adding
@@ -40,10 +41,12 @@ class FastGraphCluster
   ~FastGraphCluster(void);
   friend class DebugFunc;
   void updateInput(list<Pairmatch * > &active_matches);
-  void fastClusterCore();
+  void fastClusterCore(int seedn, float freq_th, float minLen, ofstream& fout1);
   map <int, EdgeInfo* > *m_neighbor;
   map <int, Cluster* > result_clst;
-
+  //// IBD pairs that are missed by beagle in current windows, key pairs are ordered
+  map <pair<int, int>, MisPair* > misPairs;
+  
   int clst_topindex;
   int numOfLeftPairs(); // currect window number of IBD pairs that are not used 
   void printAllClst(ofstream& fout);
@@ -61,8 +64,10 @@ class FastGraphCluster
 	map<int, int > clstID;	
 
  private:
-	int expandCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed);
+	int buildCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed);
 	void extendCore(set<int> &surround,set<int> &core_id, set<int> &node_id, int dn);
 	float getWeight(float edgeweight,float vertexweight, float seedW=NULL);
 	void deleteClst(int cid, Cluster * i_clst=NULL);
+	void initMisFlag();  // set flag = 0
+	void printMissing(float minLen); // print current pairs in current window
 };

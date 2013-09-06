@@ -42,22 +42,21 @@ class EdgeInfo
   size_t p0, p1;
 };
 
-//// record IBD pairs that are missed by beagle in current windows 
-//class MissingPair
-//{
-// public:
-// MissingIBD(size_t p0, size_t p1, float length, int flag):p0(p0), p1(p1), length(length), flag(flag) {};
-//  size_t p0, p1;
-//  float length;
-//  int flag;
-//}
-
-/*
-struct EdgeInfo
+class MisPair
 {
-  EdgeInfo(float weight, size_t p0, size_t p1){weight=weight; p0=p0; p1=p1;}
-  float weight;
-  size_t p0, p1;
+ public:
+ MisPair(float p_start, float p_end, int flag):p_start(p_start),p_end(p_end), flag(flag){};
+  float p_start, p_end;
+  int flag;
+};
+
+/* no polymorphism ??
+class MisPair
+{
+ public:
+ MisPair(size_t p_start, size_t p_end, int flag):p_start(p_start),p_end(p_end), flag(flag){};
+  size_t p_start, p_end;
+  int flag;
 };
 */
 
