@@ -164,7 +164,7 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
     FibonacciHeap heap;	// local expanding heap
     i = seedArray->getMax();   
     buildCore(i, result, heap, changed); // update clst_topindex, added to result_clst
-    // make sure  with\out extension, core stays the same.
+    // make sure  with\out extension, core size stays the same.
     fout1 << cur_pos << "\t" << result.size() << endl; 
 
     if (heap.m_nNode > 0){ // there are nodes left after the core
@@ -179,35 +179,55 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
 	surround.clear();
       }
       
-      // missing edges within core_ext
       if(!core_ext.empty()){
+    map <pair<int, int>, MisPair* >::iterator mi;
+    map<pair<int,int>, int> pairCount;
+    set<int>::iterator ai,ci,bi;
+    int id1, id2;
 	//cerr << "size1 "<< core_ext.size() << " " << (*core_ext.begin()).size()<< endl;
-	map<pair<int,int>, int> pairCount;   
-	set<int>::iterator ai,ci,bi;  
+   	// step 1: missing edges between core_ext and core (look at this first, use freq_thn as filter)
+    map<int, int> ext_node;
+    set<int> ext_node_set;
+    for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++){
+       for (ai=(i->first).begin();ai!=(i->first).end();ai++)
+          addKey(ext_node, *ai, i->second);
+    }
+    for (map<int, int>::iterator i = ext_node.begin(); i!=ext_node.end(); i++){
+        if (i->second < freq_thn) continue;
+        ext_node_set.insert(i->first);   // save time for step 2? while adding pairs
+        for (set <int>::iterator j = result.begin(); j!=result.end(); j++){
+           if (i->first < *j){
+                addKey(pairCount, make_pair(i->first, *j), i->second);
+            } else {
+                addKey(pairCount, make_pair(*j, i->first), i->second);
+            }
+        }
+    }
+    ext_node.clear();
+          
+	// step 2: missing edges within core_ext
+
 	for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++){
 	  if ((i->first).size() <= 1) continue;
 	  ci = (i->first).end();
 	  ci--;
 	  for (ai=(i->first).begin();ai!=ci;ai++){
+        if (ext_node_set.find(*ai)==ext_node_set.end()) continue;  // maybe speed up, not sure
 	    bi = ai;
 	    bi++;
-	    for (;bi!=(i->first).end();bi++)  // keys are sorted, *ai < *bi,  i hope..
+        for (;bi!=(i->first).end();bi++){ // keys are sorted, *ai < *bi,  i hope..
+          if (ext_node_set.find(*bi)==ext_node_set.end()) continue;  
 	      addKey(pairCount, make_pair(*ai, *bi), i->second); // look up expensive
+        }
 	  }
 	}
-
-	/*
-	for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++){ 
-	  cerr << (pi->first).first <<" " << (pi->first).second << " "<< pi->second << endl;
-	}
-	exit(0); */
-
+          
+    ext_node_set.clear();
 	MisPair * p_pair;
-	map <pair<int, int>, MisPair* >::iterator mi;
 	for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++){
 	  if (pi->second < freq_thn) continue; //must be frequent enough
-	  int id1=(pi->first).first; 
-	  int id2=(pi->first).second;
+	  id1=(pi->first).first; 
+	  id2=(pi->first).second;
 	  mi = misPairs.find(pi->first);
 	  // if exist in pre-window, update position
 	  if (mi != misPairs.end()) { 
@@ -217,12 +237,16 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
 	    // if not exist in pre-window and not reported, create new
 	    if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
 	      p_pair = new MisPair(cur_pos_start, cur_pos, 1);
-              misPairs[pi->first] = p_pair;
+          misPairs[pi->first] = p_pair;
 	    }
 	  }
 	}
 	pairCount.clear();
-	
+          
+          /*
+           for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++)
+           cerr << (pi->first).first <<" " << (pi->first).second << " "<< pi->second << endl;
+           */
       }    
       // done with update missing edges
     }
