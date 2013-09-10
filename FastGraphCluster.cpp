@@ -5,8 +5,7 @@
 using namespace std;
 
 #define UNEXPLORED -1
-#define getmin(a,b) ((a)<(b)?(a):(b))
-
+#define getmax(a,b) ((a)>(b)?(a):(b))
 extern vector<string> vertexName;
 extern float cur_pos_start;
 extern float cur_pos;
@@ -52,8 +51,10 @@ void FastGraphCluster::deleteClst(int cid, Cluster * i_clst /*=NULL*/)
 void FastGraphCluster::initMisFlag()
 {
   map <pair<int, int>, MisPair*>::iterator i;
-  for (i=misPairs.begin(); i!=misPairs.end(); i++)
-    (i->second)->flag = 0;
+  for (i=misPairs.begin(); i!=misPairs.end(); i++){
+    int flag = (i->second)->flag;
+    (i->second)->flag = -flag;
+  }
 }
 
 void FastGraphCluster::printMissing(float minLen)
@@ -62,8 +63,9 @@ void FastGraphCluster::printMissing(float minLen)
   //cerr << "m3\t" << cur_pos << "\t" << misPairs.size() << endl;
   vector <map <pair<int, int>, MisPair* >::iterator> rms;
   for (map <pair<int, int>, MisPair* >::iterator i=misPairs.begin(); i!=misPairs.end(); i++){
-    if ((i->second)->flag == 0){ 
+    if ((i->second)->flag < 0){ 
       if ((i->second)->p_end - (i->second)->p_start >= minLen){ 
+	cout << -(i->second)->flag << "\t" ;
 	cout << vertexName[(i->first).first] << "\t" << vertexName[(i->first).second] << "\t";
 	cout << (i->second)->p_start << "\t" << (i->second)->p_end << endl; 
       }
@@ -185,7 +187,8 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
     set<int>::iterator ai,ci,bi;
     int id1, id2;
 	//cerr << "size1 "<< core_ext.size() << " " << (*core_ext.begin()).size()<< endl;
-   	// step 1: missing edges between core_ext and core (look at this first, use freq_thn as filter)
+
+    // step 1: missing edges between core_ext and core (look at this first, use freq_thn as filter)
     map<int, int> ext_node;
     set<int> ext_node_set;
     for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++){
@@ -196,11 +199,11 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
         if (i->second < freq_thn) continue;
         ext_node_set.insert(i->first);   // save time for step 2? while adding pairs
         for (set <int>::iterator j = result.begin(); j!=result.end(); j++){
-           if (i->first < *j){
-                addKey(pairCount, make_pair(i->first, *j), i->second);
-            } else {
-                addKey(pairCount, make_pair(*j, i->first), i->second);
-            }
+	  if (i->first < *j){
+	    addKey(pairCount, make_pair(i->first, *j), i->second);
+	  } else {
+	    addKey(pairCount, make_pair(*j, i->first), i->second);
+	  }
         }
     }
     ext_node.clear();
@@ -215,9 +218,9 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
         if (ext_node_set.find(*ai)==ext_node_set.end()) continue;  // maybe speed up, not sure
 	    bi = ai;
 	    bi++;
-        for (;bi!=(i->first).end();bi++){ // keys are sorted, *ai < *bi,  i hope..
+	for (;bi!=(i->first).end();bi++){ // keys are sorted, *ai < *bi,  i hope..
           if (ext_node_set.find(*bi)==ext_node_set.end()) continue;  
-	      addKey(pairCount, make_pair(*ai, *bi), i->second); // look up expensive
+	     addKey(pairCount, make_pair(*ai, *bi), i->second); // look up expensive
         }
 	  }
 	}
@@ -229,24 +232,37 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
 	  id1=(pi->first).first; 
 	  id2=(pi->first).second;
 	  mi = misPairs.find(pi->first);
-	  // if exist in pre-window, update position
-	  if (mi != misPairs.end()) { 
-	    (mi->second)->p_end = cur_pos; 
-	    (mi->second)->flag = 1;	    
-	  } else { // fixme: window as position for now
-	    // if not exist in pre-window and not reported, create new
-	    if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
-	      p_pair = new MisPair(cur_pos_start, cur_pos, 1);
-          misPairs[pi->first] = p_pair;
+
+//	  // if exist in pre-window, update position
+//	  if (mi != misPairs.end()) { 
+//	    (mi->second)->p_end = cur_pos; 
+//	    (mi->second)->flag = result.size();	    
+//	  } else { // fixme: window as position for now
+//	    // if not exist in pre-window and not reported, create new
+//	    if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
+//	      p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
+//	      misPairs[pi->first] = p_pair;
+//	    }
+//	  }
+	  
+	  // more strict(no overlap with beagle), may break segments
+	  if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
+	    if (mi != misPairs.end()) { 
+	      (mi->second)->p_end = cur_pos; 
+	      (mi->second)->flag = result.size();	    
+	    } else { // fixme: window as position for now
+	      p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
+	      misPairs[pi->first] = p_pair;
 	    }
 	  }
+	  
 	}
 	pairCount.clear();
-          
-          /*
-           for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++)
-           cerr << (pi->first).first <<" " << (pi->first).second << " "<< pi->second << endl;
-           */
+	
+	/*
+	  for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++)
+	  cerr << (pi->first).first <<" " << (pi->first).second << " "<< pi->second << endl;
+	*/
       }    
       // done with update missing edges
     }
@@ -404,7 +420,7 @@ void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int
     if (nVertex > 1) {
       density = 2.0*tEdge/(nVertex*(nVertex-1));
       increase = es/(density*(nVertex-1)); 
-      // if ( density < m_dLowDen || increase < m_dLowerIncrease){
+      //if ( density < m_dLowDen || increase < m_dLowerIncrease){
       if ( density < m_dLowDen ) {
 	nVertex--;
         tEdge -= es;
