@@ -1,7 +1,6 @@
 #include "emi.h"
 
 int seedn = 5;
-//float freq_th = 0.6;
 float freq_th = 0.8;
 float WINDOW_SIZE_nfold = 2.; // at least that long to be printed (as missing pairs)
 float MIN_CLUSTER_DENSITY = 0.6f;
@@ -65,6 +64,8 @@ bool process_param( int argc , char * argv[] )
 		}
 		else if ( string(argv[i]) == "-den" ) { MIN_CLUSTER_DENSITY=(float)atof(argv[++i]);}
 		else if ( string(argv[i]) == "-min" ) { MIN_GRAPH_SIZE = atoi( argv[++i] ); }
+		else if ( string(argv[i]) == "-nex" ) { seedn = atoi( argv[++i] ); } // num of extened clusters
+		else if ( string(argv[i]) == "-fqt" ) { freq_th=(float)atof(argv[++i]);} 
 		else CLUSTER_FILE = argv[i];
 	}
 	if ( WINDOW_SIZE <= 0 ) { cerr << "ERROR: -win " << WINDOW_SIZE << ": must be greater than zero" << endl; pass = false; }

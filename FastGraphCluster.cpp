@@ -170,8 +170,8 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
     if (heap.m_nNode > 0){ // there are nodes left after the core
       map< set <int>, int > core_ext;  // count number of times it appears
       set<int> surround;
-      //srand(time(NULL));
-      srand(0);
+      srand(time(NULL));
+      //srand(0);
       for (int dn=0; dn<seedn; dn++){
 	extendCore(surround, result, heap.current_node_id, dn); 
 	if (!surround.empty())
