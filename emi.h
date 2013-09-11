@@ -30,8 +30,9 @@ class Pairmatch{
 class Cluster
 {
  public:
- Cluster(set <int> &v):nodes(v) {};
+ Cluster(set <int> &v, size_t p_start=0, size_t p_end=0):nodes(v),p_start(p_start),p_end(p_end) {};
   set <int> nodes;
+  size_t p_start, p_end;
 };
 
 class EdgeInfo

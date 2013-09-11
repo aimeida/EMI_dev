@@ -52,15 +52,14 @@ void FastGraphCluster::initMisFlag()
 {
   map <pair<int, int>, MisPair*>::iterator i;
   for (i=misPairs.begin(); i!=misPairs.end(); i++){
-    int flag = (i->second)->flag;
-    (i->second)->flag = -flag;
+    if ((i->second)->p_end < cur_pos)  // output pairs with flag<0 before moving to next window 
+      (i->second)->flag = -(i->second)->flag;
   }
 }
 
 void FastGraphCluster::printMissing(float minLen)
 {
   // don't erase while iterating, may cause problem
-  //cerr << "m3\t" << cur_pos << "\t" << misPairs.size() << endl;
   vector <map <pair<int, int>, MisPair* >::iterator> rms;
   for (map <pair<int, int>, MisPair* >::iterator i=misPairs.begin(); i!=misPairs.end(); i++){
     if ((i->second)->flag < 0){ 
@@ -233,28 +232,30 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
 	  id2=(pi->first).second;
 	  mi = misPairs.find(pi->first);
 
-//	  // if exist in pre-window, update position
-//	  if (mi != misPairs.end()) { 
-//	    (mi->second)->p_end = cur_pos; 
-//	    (mi->second)->flag = result.size();	    
-//	  } else { // fixme: window as position for now
-//	    // if not exist in pre-window and not reported, create new
-//	    if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
-//	      p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
-//	      misPairs[pi->first] = p_pair;
-//	    }
-//	  }
-	  
-	  // more strict(no overlap with beagle), may break segments
-	  if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
-	    if (mi != misPairs.end()) { 
-	      (mi->second)->p_end = cur_pos; 
-	      (mi->second)->flag = result.size();	    
-	    } else { // fixme: window as position for now
+	  // if exist in pre-window, update position
+	  if (mi != misPairs.end()) { 
+	    (mi->second)->p_end = cur_pos; 
+	    ////(mi->second)->p_end = getmax(cur_pos,(mi->second)->p_end); 
+	    (mi->second)->flag = result.size();	    
+	  } else { // fixme: window as position for now
+	    // if not exist in pre-window and not reported, create new
+	    if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
 	      p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
 	      misPairs[pi->first] = p_pair;
 	    }
 	  }
+	  
+//	  // more strict(no overlap with beagle), may break segments
+//	  if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
+//	    if (mi != misPairs.end()) { 
+//	      (mi->second)->p_end = cur_pos; 
+//	      (mi->second)->flag = result.size();	    
+//	    } else { // fixme: window as position for now
+//	      p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
+//	      misPairs[pi->first] = p_pair;
+//	    }
+//	  }
+
 	  
 	}
 	pairCount.clear();
