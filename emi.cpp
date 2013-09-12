@@ -197,8 +197,14 @@ int main( int argc , char * argv[] )
   
   input_seg.close();
   
-  cerr << endl << "Done with loading IBD shared segments" << endl;
-  
+  // count transitions
+  float p01, p10;
+  //cerr << "start " << matches.size() << endl;
+  DebugFunc::countTransition(matches, WINDOW_SIZE, p01, p10);
+  //cerr << "end " <<  matches.size() << endl;
+  cerr << endl << "Done with loading IBD shared segments " << p01 << " " << p10 << endl;  
+  exit(0);
+
   vertexNameMap.clear();
   EdgeInfo * p_edge;
   long start = myclock();

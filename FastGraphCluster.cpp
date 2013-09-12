@@ -96,8 +96,10 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
     {
       // edges to delete within cluster
       ci=clstID[(*i).first];      
-      if ( ci > -1 &&  ci==clstID[(*i).second])
+      if ( ci > -1 &&  ci==clstID[(*i).second]){
 	addKey(changed_clst, ci);
+	//cerr << "rm " << endl; //51636, many changed!
+      }
     }  
   if (!addEdge.empty()){
     for (vector< pair <int, int > >::iterator i=addEdge.begin();i!=addEdge.end();i++)
