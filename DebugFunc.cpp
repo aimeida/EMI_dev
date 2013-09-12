@@ -1,12 +1,13 @@
 // small functions for debug
 #include "DebugFunc.h"
 
-void DebugFunc::countTransition(list<Pairmatch * > matches, float WINDOW_SIZE, float &p01, float &p10) 
+int DebugFunc::countTransition(list<Pairmatch * > matches, float WINDOW_SIZE, float &p01, float &p10) 
 {
   list<Pairmatch * > active_matches; 
   list< Pairmatch * >::iterator pm_iter, am;  
   float cur_pos = 0,cur_pos_start = 0;
   float min_end;
+  int nwin=0;
   size_t n01=0, n10=0, n_all=0;  // Num(non->IBD), Num(IBD->non)
   vector< pair <int, int > > delEdge;
   vector< pair <int, int > > addEdge;
@@ -40,6 +41,7 @@ void DebugFunc::countTransition(list<Pairmatch * > matches, float WINDOW_SIZE, f
       delEdge.clear();
       addEdge.clear();
       cur_pos_start = cur_pos;
+      nwin += 1;
     }
   while(!active_matches.empty())
     {
@@ -57,11 +59,13 @@ void DebugFunc::countTransition(list<Pairmatch * > matches, float WINDOW_SIZE, f
 	}
       delEdge.clear();
       cur_pos_start = cur_pos;
+      nwin += 1;
     }
   //cerr << "end0 " <<  matches.size() << endl;
   //cerr << n_all << "\t" << n10 << "\t" << n01 << endl;
   p01 = n01/(float)n_all;
   p10 = n10/(float)n_all;
+  return nwin;
 }
 
 string DebugFunc::intToString(int a)

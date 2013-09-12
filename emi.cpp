@@ -199,11 +199,12 @@ int main( int argc , char * argv[] )
   
   // count transitions
   float p01, p10;
+  int nwin;
   //cerr << "start " << matches.size() << endl;
-  DebugFunc::countTransition(matches, WINDOW_SIZE, p01, p10);
+  nwin = DebugFunc::countTransition(matches, WINDOW_SIZE, p01, p10);
   //cerr << "end " <<  matches.size() << endl;
-  cerr << endl << "Done with loading IBD shared segments " << p01 << " " << p10 << endl;  
-  exit(0);
+  cerr << endl << "Done with loading IBD shared segments " << nwin << " " << p01 << " " << p10 << endl;  
+  //exit(0);
 
   vertexNameMap.clear();
   EdgeInfo * p_edge;
@@ -251,10 +252,8 @@ int main( int argc , char * argv[] )
        addEdge.clear();
        cluster.updateInput(active_matches);
        cluster.fastClusterCore(seedn, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
-
-       //cout << cur_pos_start << " # " << cur_pos << endl;       
+       
        ///size_t n_used = DebugFunc::numOfLeftPairs(cluster);
-       ///cout << n_used/(float)active_matches.size() << endl;       
        cur_pos_start = cur_pos;
      }
 
@@ -283,7 +282,6 @@ int main( int argc , char * argv[] )
      cluster.updateInput(active_matches);
      cluster.fastClusterCore(seedn, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
      //cout << cur_pos_start << " # " << cur_pos << endl;
-     //cout << n_used/(float)active_matches.size() << endl;       
      cur_pos_start = cur_pos;
    }
 

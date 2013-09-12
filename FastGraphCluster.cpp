@@ -90,29 +90,8 @@ void addKey(map <K,V> &m, K key, int cnt=1)
 void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pair <int, int > > &addEdge)
 {
   map<int, int > changed_clst; 
-  Cluster* tmp_clst;
-  int ci, ai;
-  for (vector< pair <int, int > >::iterator i=delEdge.begin();i!=delEdge.end();i++)
-    {
-      // edges to delete within cluster
-      ci=clstID[(*i).first];      
-      if ( ci > -1 &&  ci==clstID[(*i).second]){
-	addKey(changed_clst, ci);
-	//cerr << "rm " << endl; //51636, many changed!
-      }
-    }  
-  if (!addEdge.empty()){
-    for (vector< pair <int, int > >::iterator i=addEdge.begin();i!=addEdge.end();i++)
-      {
-	if ((ci=clstID[(*i).first]) > -1 )
-	  addKey(changed_clst, ci);
-	if ((ci=clstID[(*i).second]) > -1 )
-	  addKey(changed_clst, ci);
-      }  
-  }
-  if (changed_clst.empty()) return;
-  for (map<int, int >::iterator cc = changed_clst.begin(); cc != changed_clst.end(); cc++)
-    deleteClst(cc->first);
+  for (map <int, Cluster* >::iterator i=result_clst.begin();i!=result_clst.end();i++)
+    deleteClst(i->first, i->second);
 }
 
 // print all Clusters in current window.

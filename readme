@@ -1,5 +1,6 @@
-1. srand && addVar : two random resources, right now, keep it deterministic
+this branch is window independent
 
+srand && addVar : two random resources
 ####################
 ### improvements 
 1. no need for variation in building the core, if den = 0.8 (var included)
