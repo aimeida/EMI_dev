@@ -50,6 +50,7 @@ class FastGraphCluster
   int clst_topindex;
   int numOfLeftPairs(); // currect window number of IBD pairs that are not used 
   void printAllClst(ofstream& fout);
+  void dissolve();
   void dissolve(vector< pair <int, int > > &delEdge, vector< pair <int, int > > &addEdge);
   
  protected:

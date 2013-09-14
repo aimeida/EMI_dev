@@ -87,12 +87,43 @@ void addKey(map <K,V> &m, K key, int cnt=1)
   } else (it->second) += cnt;
 }
 
+void FastGraphCluster::dissolve()
+{
+  for (map<int, int>::iterator i = clstID.begin(); i != clstID.end(); i++)
+    i->second = -1;
+  for (map <int, Cluster* >::iterator i=result_clst.begin();i!=result_clst.end();i++)
+    delete i->second;
+  result_clst.clear();
+}
+
 void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pair <int, int > > &addEdge)
 {
   map<int, int > changed_clst; 
-  for (map <int, Cluster* >::iterator i=result_clst.begin();i!=result_clst.end();i++)
-    deleteClst(i->first, i->second);
+  Cluster* tmp_clst;
+  int ci, ai;
+  for (vector< pair <int, int > >::iterator i=delEdge.begin();i!=delEdge.end();i++)
+    {
+      // edges to delete within cluster
+      ci=clstID[(*i).first];      
+      if ( ci > -1 &&  ci==clstID[(*i).second]){
+	addKey(changed_clst, ci);
+	//cerr << "rm " << endl; //51636, many changed!
+      }
+    }  
+  if (!addEdge.empty()){
+    for (vector< pair <int, int > >::iterator i=addEdge.begin();i!=addEdge.end();i++)
+      {
+	if ((ci=clstID[(*i).first]) > -1 )
+	  addKey(changed_clst, ci);
+	if ((ci=clstID[(*i).second]) > -1 )
+	  addKey(changed_clst, ci);
+      }  
+  }
+  if (changed_clst.empty()) return;
+  for (map<int, int >::iterator cc = changed_clst.begin(); cc != changed_clst.end(); cc++)
+    deleteClst(cc->first);
 }
+
 
 // print all Clusters in current window.
 void FastGraphCluster::printAllClst(ofstream& fout)
@@ -138,17 +169,16 @@ void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
 
 void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, ofstream& fout1)
 {
-  int i=0;
   set<int> result, changed;
   int freq_thn = (int) seedn * freq_th;
-  //cerr << "freq_thn " << freq_thn << endl;
+  size_t n_clst_all = 0;
   while (!seedArray->empty() && seedArray->top >= m_nLowerSize-1) {
     FibonacciHeap heap;	// local expanding heap
-    i = seedArray->getMax();   
+    int i = seedArray->getMax();   
     buildCore(i, result, heap, changed); // update clst_topindex, added to result_clst
     // make sure  with\out extension, core size stays the same.
     fout1 << cur_pos << "\t" << result.size() << endl; 
-
+      
     if (heap.m_nNode > 0){ // there are nodes left after the core
       map< set <int>, int > core_ext;  // count number of times it appears
       set<int> surround;
@@ -161,14 +191,31 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
 	surround.clear();
       }
       
-      if(!core_ext.empty()){
-    map <pair<int, int>, MisPair* >::iterator mi;
-    map<pair<int,int>, int> pairCount;
-    set<int>::iterator ai,ci,bi;
-    int id1, id2;
-	//cerr << "size1 "<< core_ext.size() << " " << (*core_ext.begin()).size()<< endl;
+    n_clst_all += (core_ext.size()-1);
 
-    // step 1: missing edges between core_ext and core (look at this first, use freq_thn as filter)
+    if (cur_pos == 1200000){
+        if (core_ext.size() > (int) (0 * seedn)) {
+    //if (core_ext.size() > (int) (0.9 * seedn) && result.size()==16) { // not print at all
+        cerr << core_ext.size() << "##" << result.size() << endl;
+        /*
+           for (map< set <int>, int >::iterator i = core_ext.begin(); i!= core_ext.end(); i++){
+               cerr << (i->first).size() << "&& ";
+               for (set <int>::iterator j=(i->first).begin(); j!=(i->first).end();j++)
+                   cerr << *j << " ";
+               cerr << endl;
+           }
+           cerr << endl; 
+         */
+    }
+        }
+    if(!core_ext.empty()){
+	map <pair<int, int>, MisPair* >::iterator mi;
+	map<pair<int,int>, int> pairCount;
+	set<int>::iterator ai,ci,bi;
+	int id1, id2;
+	//cerr << "size1 "<< core_ext.size() << " " << (*core_ext.begin()).size()<< endl;
+	
+	// step 1: missing edges between core_ext and core (look at this first, use freq_thn as filter)
     map<int, int> ext_node;
     set<int> ext_node_set;
     for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++){
@@ -225,28 +272,20 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
 	      misPairs[pi->first] = p_pair;
 	    }
 	  }
-	  
-//	  // more strict(no overlap with beagle), may break segments
-//	  if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
-//	    if (mi != misPairs.end()) { 
-//	      (mi->second)->p_end = cur_pos; 
-//	      (mi->second)->flag = result.size();	    
-//	    } else { // fixme: window as position for now
-//	      p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
-//	      misPairs[pi->first] = p_pair;
-//	    }
-//	  }
-
-	  
-	}
-	pairCount.clear();
-	
-	/*
-	  for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++)
-	  cerr << (pi->first).first <<" " << (pi->first).second << " "<< pi->second << endl;
-	*/
-      }    
-      // done with update missing edges
+	  /*
+	  // more strict(no overlap with beagle), may break segments
+	  if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
+	    if (mi != misPairs.end()) {
+	      (mi->second)->p_end = cur_pos;
+	      (mi->second)->flag = result.size();
+	    } else { // fixme: window as position for now
+	      p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
+	      misPairs[pi->first] = p_pair;
+	    }
+	  }*/        
+	 }
+	 pairCount.clear();
+     }    
     }
 
     heap.current_node_id.clear();
@@ -264,9 +303,10 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
   
   if (!seedArray->empty())
     delete seedArray;
-  
   printMissing(minLen);
   initMisFlag();
+  if (cur_pos==1200000)
+    cerr << cur_pos << "## " << n_clst_all << " " << result_clst.size() << endl;
 }
 
 // used to select the seed node pair
@@ -402,8 +442,8 @@ void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int
     if (nVertex > 1) {
       density = 2.0*tEdge/(nVertex*(nVertex-1));
       increase = es/(density*(nVertex-1)); 
-      //if ( density < m_dLowDen || increase < m_dLowerIncrease){
-      if ( density < m_dLowDen ) {
+      if ( density < m_dLowDen || increase < m_dLowerIncrease){
+      //if ( density < m_dLowDen ) { // i didn't use it for detect pairwise missing data, due to loss of power !!!! need to check it again
 	nVertex--;
         tEdge -= es;
         break;

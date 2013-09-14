@@ -247,12 +247,12 @@ int main( int argc , char * argv[] )
 	   matches.erase( pm_iter++ );
 	 }
 
-       cluster.dissolve(delEdge, addEdge); 
+       //cluster.dissolve(delEdge, addEdge); 
+       cluster.dissolve();  // sth wrong here!
        delEdge.clear();
        addEdge.clear();
        cluster.updateInput(active_matches);
        cluster.fastClusterCore(seedn, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
-       
        ///size_t n_used = DebugFunc::numOfLeftPairs(cluster);
        cur_pos_start = cur_pos;
      }
@@ -277,11 +277,11 @@ int main( int argc , char * argv[] )
 	     active_matches.erase( am++ );
 	   } else am++;
        }
-     cluster.dissolve(delEdge, addEdge); 
+     //cluster.dissolve(delEdge, addEdge); 
+     cluster.dissolve();
      delEdge.clear();
      cluster.updateInput(active_matches);
-     cluster.fastClusterCore(seedn, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
-     //cout << cur_pos_start << " # " << cur_pos << endl;
+     cluster.fastClusterCore(seedn, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1);
      cur_pos_start = cur_pos;
    }
 

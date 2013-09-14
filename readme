@@ -7,6 +7,7 @@ srand && addVar : two random resources
 2. 4370 out of 19760 has variation in extended core =~ 25%
 3. clst_size = 2 or 3, be careful !!!
 4. heuristic stop ==> save time ???
+  !!!!!!!!!! NB: need "increase < m_dLowerIncrease", otherwise, two many clusters not sure.
 ####################
 todo
 0. delete *Cluster
