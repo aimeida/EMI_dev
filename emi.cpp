@@ -2,6 +2,7 @@
 
 int seedn = 5;
 float freq_th = 0.8;
+int incre_cutoff = 0; // if use incre_cutoff, less predictions for missing edge 
 float WINDOW_SIZE_nfold = 2.; // at least that long to be printed (as missing pairs)
 float MIN_CLUSTER_DENSITY = 0.6f;
 float MIN_WEIGHT = 0.8; 
@@ -66,13 +67,15 @@ bool process_param( int argc , char * argv[] )
 		else if ( string(argv[i]) == "-min" ) { MIN_GRAPH_SIZE = atoi( argv[++i] ); }
 		else if ( string(argv[i]) == "-nex" ) { seedn = atoi( argv[++i] ); } // num of extened clusters
 		else if ( string(argv[i]) == "-fqt" ) { freq_th=(float)atof(argv[++i]);} 
+		else if ( string(argv[i]) == "-ict" ) { incre_cutoff=atoi(argv[++i]);} 
 		else CLUSTER_FILE = argv[i];
 	}
 	if ( WINDOW_SIZE <= 0 ) { cerr << "ERROR: -win " << WINDOW_SIZE << ": must be greater than zero" << endl; pass = false; }
 	if (! (WINSIZE_TYPE == "bp" || WINSIZE_TYPE == "cM")) {cerr << "ERROR: -win " << WINSIZE_TYPE << " " << WINDOW_SIZE << ": sliding window size must be in bp or cM unit" << endl; pass = false; }
 	if (! (LEN_TYPE == "bp" || LEN_TYPE == "cM" || LEN_TYPE == "7th") ) {cerr << "ERROR: -wgt " << LEN_TYPE << ", currently only support 3 kinds of weighting" << endl; pass = false;}
 	if ( MIN_CLUSTER_DENSITY <= 0 || MIN_CLUSTER_DENSITY > 1 ) { cerr << "ERROR: -density " << MIN_CLUSTER_DENSITY << ": must be greater than zero and less than or equal to one" << endl; pass = false; }
-	if ( MIN_GRAPH_SIZE <= 2 ) { cerr << "ERROR: -min " << MIN_GRAPH_SIZE << ": must be greater than one" << endl; pass = false; }
+	if ( MIN_GRAPH_SIZE <= 2 ) { cerr << "ERROR: -min " << MIN_GRAPH_SIZE << ": must be greater than 1" << endl; pass = false; }
+	if (seedn < 5) {cerr << "ERROR: -nex " <<seedn << ": must be greater than 4" << endl; pass = false;}
 	if ( ! pass ) cerr << endl;
 	return pass;
 }
@@ -197,15 +200,8 @@ int main( int argc , char * argv[] )
   
   input_seg.close();
   
-  // count transitions
-  float p01, p10;
-  int nwin;
-  //cerr << "start " << matches.size() << endl;
-  nwin = DebugFunc::countTransition(matches, WINDOW_SIZE, p01, p10);
-  //cerr << "end " <<  matches.size() << endl;
-  cerr << endl << "Done with loading IBD shared segments " << nwin << " " << p01 << " " << p10 << endl;  
-  //exit(0);
-
+  //cerr << endl << "Done with loading IBD shared segments" << endl;
+  
   vertexNameMap.clear();
   EdgeInfo * p_edge;
   long start = myclock();
@@ -215,6 +211,9 @@ int main( int argc , char * argv[] )
   float min_end;
 
    ofstream fout1((CLUSTER_FILE+".clst.tmp").c_str());
+
+   float n_overhead = seedn * 0.05 + 4.5; // [5,10] <==> [10, 110]
+   cerr << "n_overhead " << n_overhead << endl;
 
    vector< pair <int, int > > delEdge;
    vector< pair <int, int > > addEdge;
@@ -247,13 +246,16 @@ int main( int argc , char * argv[] )
 	   matches.erase( pm_iter++ );
 	 }
 
+       cluster.dissolve();
        //cluster.dissolve(delEdge, addEdge); 
-       cluster.dissolve();  // sth wrong here!
        delEdge.clear();
        addEdge.clear();
        cluster.updateInput(active_matches);
-       cluster.fastClusterCore(seedn, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
+       cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
+
+       //cout << cur_pos_start << " # " << cur_pos << endl;       
        ///size_t n_used = DebugFunc::numOfLeftPairs(cluster);
+       ///cout << n_used/(float)active_matches.size() << endl;       
        cur_pos_start = cur_pos;
      }
 
@@ -277,11 +279,14 @@ int main( int argc , char * argv[] )
 	     active_matches.erase( am++ );
 	   } else am++;
        }
-     //cluster.dissolve(delEdge, addEdge); 
+
      cluster.dissolve();
+     //cluster.dissolve(delEdge, addEdge); 
      delEdge.clear();
      cluster.updateInput(active_matches);
-     cluster.fastClusterCore(seedn, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1);
+     cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
+     //cout << cur_pos_start << " # " << cur_pos << endl;
+     //cout << n_used/(float)active_matches.size() << endl;       
      cur_pos_start = cur_pos;
    }
 

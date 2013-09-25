@@ -4,11 +4,14 @@
 #include "DebugFunc.h"
 using namespace std;
 
+#define DEBUGMODE 
 #define UNEXPLORED -1
 #define getmax(a,b) ((a)>(b)?(a):(b))
+
 extern vector<string> vertexName;
 extern float cur_pos_start;
 extern float cur_pos;
+extern int incre_cutoff;
 
 FastGraphCluster::FastGraphCluster(float density,int lowersize,float lowerincrease, int m_nVertex):m_nLowerSize(lowersize),m_dLowDen(density),m_dLowerIncrease(lowerincrease), m_nVertex(m_nVertex), clst_topindex(0)
 {
@@ -107,7 +110,6 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
       ci=clstID[(*i).first];      
       if ( ci > -1 &&  ci==clstID[(*i).second]){
 	addKey(changed_clst, ci);
-	//cerr << "rm " << endl; //51636, many changed!
       }
     }  
   if (!addEdge.empty()){
@@ -167,125 +169,112 @@ void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
   seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);
 }
 
-void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, ofstream& fout1)
+void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float minLen, ofstream& fout1)
 {
   set<int> result, changed;
   int freq_thn = (int) seedn * freq_th;
-  size_t n_clst_all = 0;
+  size_t n_clst_all = 0, n_clst_ext = 0;
+  //cerr << "clst size " <<  result_clst.size() << endl;  // should be 0
   while (!seedArray->empty() && seedArray->top >= m_nLowerSize-1) {
     FibonacciHeap heap;	// local expanding heap
     int i = seedArray->getMax();   
     buildCore(i, result, heap, changed); // update clst_topindex, added to result_clst
     // make sure  with\out extension, core size stays the same.
-    fout1 << cur_pos << "\t" << result.size() << endl; 
-      
+    //fout1 << cur_pos << "\t" << result.size() << endl; 
     if (heap.m_nNode > 0){ // there are nodes left after the core
       map< set <int>, int > core_ext;  // count number of times it appears
       set<int> surround;
-      srand(time(NULL));
-      //srand(0);
+#ifdef DEBUGMODE
+    srand(0);
+#else
+    srand(time(NULL));
+#endif
       for (int dn=0; dn<seedn; dn++){
-	extendCore(surround, result, heap.current_node_id, dn); 
-	if (!surround.empty())
-	  addKey(core_ext, surround);
-	surround.clear();
+        
+          int core_ext_size = core_ext.size();
+          if (dn >= n_overhead && core_ext_size <= 0.2*dn) { // 0.2 is arbitary, need more tests 
+              if (core_ext_size) {
+                  float n_fold = seedn/(float)dn;
+                   //cerr << "## " << core_ext_size << " " << dn<<  endl;
+                  for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++) i->second *= n_fold;
+               } 
+              break;
+          } // at least 50% calculations can be saved
+    
+          extendCore(surround, result, heap.current_node_id, dn);
+          if (!surround.empty())
+              addKey(core_ext, surround);
+          surround.clear();
       }
       
-    n_clst_all += (core_ext.size()-1);
-
-    if (cur_pos == 1200000){
-        if (core_ext.size() > (int) (0 * seedn)) {
-    //if (core_ext.size() > (int) (0.9 * seedn) && result.size()==16) { // not print at all
-        cerr << core_ext.size() << "##" << result.size() << endl;
-        /*
-           for (map< set <int>, int >::iterator i = core_ext.begin(); i!= core_ext.end(); i++){
-               cerr << (i->first).size() << "&& ";
-               for (set <int>::iterator j=(i->first).begin(); j!=(i->first).end();j++)
-                   cerr << *j << " ";
-               cerr << endl;
-           }
-           cerr << endl; 
-         */
-    }
-        }
+    // cerr << core_ext.size() << endl;  // make hist plot 
+    
     if(!core_ext.empty()){
+    // n_clst_ext += 1;
 	map <pair<int, int>, MisPair* >::iterator mi;
 	map<pair<int,int>, int> pairCount;
 	set<int>::iterator ai,ci,bi;
 	int id1, id2;
-	//cerr << "size1 "<< core_ext.size() << " " << (*core_ext.begin()).size()<< endl;
-	
-	// step 1: missing edges between core_ext and core (look at this first, use freq_thn as filter)
-    map<int, int> ext_node;
-    set<int> ext_node_set;
-    for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++){
-       for (ai=(i->first).begin();ai!=(i->first).end();ai++)
+	//step 1: missing edges between core_ext and core (look at this first, use freq_thn as filter)
+	map<int, int> ext_node;
+	set<int> ext_node_set;
+	for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++){
+	  for (ai=(i->first).begin();ai!=(i->first).end();ai++)
           addKey(ext_node, *ai, i->second);
     }
-    for (map<int, int>::iterator i = ext_node.begin(); i!=ext_node.end(); i++){
-        if (i->second < freq_thn) continue;
-        ext_node_set.insert(i->first);   // save time for step 2? while adding pairs
-        for (set <int>::iterator j = result.begin(); j!=result.end(); j++){
-	  if (i->first < *j){
+	for (map<int, int>::iterator i = ext_node.begin(); i!=ext_node.end(); i++){
+      // if (i->second >= seedn-2) cerr << "freq_thn " << freq_thn << " " << i->second << endl;
+	  if (i->second < freq_thn) continue;
+	  ext_node_set.insert(i->first);   // save time for step 2? while adding pairs
+	  for (set <int>::iterator j = result.begin(); j!=result.end(); j++){
+	    if (i->first < *j){
 	    addKey(pairCount, make_pair(i->first, *j), i->second);
-	  } else {
-	    addKey(pairCount, make_pair(*j, i->first), i->second);
-	  }
+	    } else {
+	      addKey(pairCount, make_pair(*j, i->first), i->second);
+	    }
         }
-    }
-    ext_node.clear();
-          
+	}
+	ext_node.clear();
+	
 	// step 2: missing edges within core_ext
-
 	for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++){
 	  if ((i->first).size() <= 1) continue;
 	  ci = (i->first).end();
 	  ci--;
 	  for (ai=(i->first).begin();ai!=ci;ai++){
-        if (ext_node_set.find(*ai)==ext_node_set.end()) continue;  // maybe speed up, not sure
+	    if (ext_node_set.find(*ai)==ext_node_set.end()) continue;  // maybe speed up, not sure
 	    bi = ai;
 	    bi++;
-	for (;bi!=(i->first).end();bi++){ // keys are sorted, *ai < *bi,  i hope..
-          if (ext_node_set.find(*bi)==ext_node_set.end()) continue;  
+	    for (;bi!=(i->first).end();bi++){ // keys are sorted, *ai < *bi,  i hope..
+	      if (ext_node_set.find(*bi)==ext_node_set.end()) continue;  
 	     addKey(pairCount, make_pair(*ai, *bi), i->second); // look up expensive
         }
 	  }
 	}
           
     ext_node_set.clear();
-	MisPair * p_pair;
-	for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++){
-	  if (pi->second < freq_thn) continue; //must be frequent enough
-	  id1=(pi->first).first; 
-	  id2=(pi->first).second;
-	  mi = misPairs.find(pi->first);
-
-	  // if exist in pre-window, update position
-	  if (mi != misPairs.end()) { 
-	    (mi->second)->p_end = cur_pos; 
-	    ////(mi->second)->p_end = getmax(cur_pos,(mi->second)->p_end); 
-	    (mi->second)->flag = result.size();	    
-	  } else { // fixme: window as position for now
+    MisPair * p_pair;
+    for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++){
+        //if (pi->second > seedn) cerr << "hello " << pi->second << endl;
+      if (pi->second < freq_thn) continue; //must be frequent enough
+      id1=(pi->first).first; 
+      id2=(pi->first).second;
+      mi = misPairs.find(pi->first);
+      
+      // if exist in pre-window, update position
+      if (mi != misPairs.end()) { 
+	(mi->second)->p_end = cur_pos; 
+	(mi->second)->flag = result.size();	    
+      } else { // fixme: window as position for now
 	    // if not exist in pre-window and not reported, create new
-	    if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
-	      p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
-	      misPairs[pi->first] = p_pair;
-	    }
-	  }
-	  /*
-	  // more strict(no overlap with beagle), may break segments
-	  if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
-	    if (mi != misPairs.end()) {
-	      (mi->second)->p_end = cur_pos;
-	      (mi->second)->flag = result.size();
-	    } else { // fixme: window as position for now
-	      p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
-	      misPairs[pi->first] = p_pair;
-	    }
-	  }*/        
-	 }
-	 pairCount.clear();
-     }    
+	if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
+	  p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
+	  misPairs[pi->first] = p_pair;
+	}
+      }
+    }
+    pairCount.clear();
+      }    
     }
 
     heap.current_node_id.clear();
@@ -305,8 +294,9 @@ void FastGraphCluster::fastClusterCore(int seedn, float freq_th, float minLen, o
     delete seedArray;
   printMissing(minLen);
   initMisFlag();
-  if (cur_pos==1200000)
-    cerr << cur_pos << "## " << n_clst_all << " " << result_clst.size() << endl;
+
+  //float n_clst_ext_p = (float)(n_clst_ext+1)/(result_clst.size()+1);
+  //cerr << cur_pos << "## " << n_clst_ext << " " << result_clst.size() << " " << n_clst_ext_p << endl;
 }
 
 // used to select the seed node pair
@@ -442,11 +432,18 @@ void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int
     if (nVertex > 1) {
       density = 2.0*tEdge/(nVertex*(nVertex-1));
       increase = es/(density*(nVertex-1)); 
-      if ( density < m_dLowDen || increase < m_dLowerIncrease){
-      //if ( density < m_dLowDen ) { // i didn't use it for detect pairwise missing data, due to loss of power !!!! need to check it again
-	nVertex--;
-        tEdge -= es;
-        break;
+      if (incre_cutoff){
+	if ( density < m_dLowDen || increase < m_dLowerIncrease) {
+          nVertex--;
+          tEdge -= es;
+          break;
+	}
+      } else {
+	if ( density < m_dLowDen ) { 
+	  nVertex--;
+	  tEdge -= es;
+	  break;
+	}
       }
     }
     surround.insert(imin);  

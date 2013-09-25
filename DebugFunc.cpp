@@ -75,11 +75,11 @@ string DebugFunc::intToString(int a)
   return ss.str();
 }
 
-void DebugFunc::printVec(set<int> m)
+void DebugFunc::printVec(set<int> &m)
 {
   for (set <int>::iterator j=m.begin(); j!=m.end(); j++)  
-    cout << *j << "\t";
-  cout << endl;
+    cerr << *j << "\t";
+  cerr << endl;
 }
 
 void DebugFunc::printNeighbor(int index, FastGraphCluster &f)

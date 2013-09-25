@@ -41,7 +41,7 @@ class FastGraphCluster
   ~FastGraphCluster(void);
   friend class DebugFunc;
   void updateInput(list<Pairmatch * > &active_matches);
-  void fastClusterCore(int seedn, float freq_th, float minLen, ofstream& fout1);
+  void fastClusterCore(int seedn, float n_overhead, float freq_th, float minLen, ofstream& fout1);
   map <int, EdgeInfo* > *m_neighbor;
   map <int, Cluster* > result_clst;
   //// IBD pairs that are missed by beagle in current windows, key pairs are ordered
