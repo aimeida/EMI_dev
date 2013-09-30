@@ -215,14 +215,12 @@ int main( int argc , char * argv[] )
    ofstream fout1((CLUSTER_FILE+".clst.tmp").c_str());
    vector< pair <int, int > > delEdge;
    vector< pair <int, int > > addEdge;
-   pm_iter = matches.begin();
-   while (pm_iter != matches.end())
-     {
+
+    for (pm_iter = matches.begin(); pm_iter != matches.end() || !active_matches.empty(); ) {
+    if (pm_iter != matches.end()) {
        while ( cur_pos < (*pm_iter)->pcm_start + WINDOW_SIZE ) cur_pos += WINDOW_SIZE;
          
-         
-       for (am = active_matches.begin(); am != active_matches.end(); )
-	 {
+            for (am = active_matches.begin(); am != active_matches.end(); ) {
 	   if ( (*am)->pcm_end < cur_pos )
 	     {
 	       delete cluster.m_neighbor[(*am)->i1][(*am)->i2]; // do NOT delete twice !!
@@ -234,10 +232,8 @@ int main( int argc , char * argv[] )
 	     } else am++;
 	 }
          
-       while ( pm_iter!= matches.end() && (*pm_iter)->pcm_start <= (cur_pos - WINDOW_SIZE) )
-	 {
-	   if ( (*pm_iter)->pcm_end >= cur_pos )
-	     {
+    while ( pm_iter!= matches.end() && (*pm_iter)->pcm_start <= (cur_pos - WINDOW_SIZE) ) {
+        if ( (*pm_iter)->pcm_end >= cur_pos ) {
 	       active_matches.push_back( *pm_iter );
 	       addEdge.push_back(make_pair((*pm_iter)->i1,(*pm_iter)->i2));
 	       p_edge = new EdgeInfo((*pm_iter)->weight, (*pm_iter)->p_start, (*pm_iter)->p_end);
@@ -246,7 +242,26 @@ int main( int argc , char * argv[] )
 	     } else delete *pm_iter; 	  // match does not take up an entire window
 	   matches.erase( pm_iter++ );
 	 }
+    }
 
+    else {
+        min_end = 0;
+        for (am = active_matches.begin(); am != active_matches.end(); am++ )
+            if ( am == active_matches.begin() || (*am)->pcm_end < min_end ) min_end = (*am)->pcm_end;
+        while ( min_end >= cur_pos ) cur_pos += WINDOW_SIZE;
+        
+        for (am = active_matches.begin(); am != active_matches.end(); ) {
+            if ( (*am)->pcm_end < cur_pos ) {
+                delete cluster.m_neighbor[(*am)->i1][(*am)->i2];
+                cluster.m_neighbor[(*am)->i1].erase((*am)->i2);
+                cluster.m_neighbor[(*am)->i2].erase((*am)->i1);
+                delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
+                delete *am;
+                active_matches.erase( am++ );
+            } else am++;
+        }
+ }
+        
        cluster.dissolve();
        //cluster.dissolve(delEdge, addEdge); 
        delEdge.clear();
@@ -257,35 +272,6 @@ int main( int argc , char * argv[] )
        ///cout << n_used/(float)active_matches.size() << endl;       
        cur_pos_start = cur_pos;
      }
-
-   // some segment left in the very end 
-   while(!active_matches.empty())
-   {
-     min_end = 0;
-     for (am = active_matches.begin(); am != active_matches.end(); am++ )
-       if ( am == active_matches.begin() || (*am)->pcm_end < min_end ) min_end = (*am)->pcm_end;
-     while ( min_end >= cur_pos ) cur_pos += WINDOW_SIZE;
-       
-     for (am = active_matches.begin(); am != active_matches.end(); )
-       {
-	 if ( (*am)->pcm_end < cur_pos )   
-	   {
-	     delete cluster.m_neighbor[(*am)->i1][(*am)->i2];
-	     cluster.m_neighbor[(*am)->i1].erase((*am)->i2);
-	     cluster.m_neighbor[(*am)->i2].erase((*am)->i1);
-	     delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
-	     delete *am;
-	     active_matches.erase( am++ );
-	   } else am++;
-       }
-
-     cluster.dissolve();
-     //cluster.dissolve(delEdge, addEdge); 
-     delEdge.clear();
-     cluster.updateInput(active_matches);
-     cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE, WINDOW_SIZE_nfold, fout1);
-     cur_pos_start = cur_pos;
-   }
 
    long end = myclock();
    cerr << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
