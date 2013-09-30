@@ -140,20 +140,13 @@ int main( int argc , char * argv[] )
 	{
     	  ss.clear(); ss.str( line );
     	  ss >> field1 >> field2;
-#ifndef DOG
-	  iid = field1+".1";
-#else
     	  iid = field1+" "+field2+".0";
-#endif
     	  clstMap[m_nVertex] = -1;
     	  vertexNameMap[iid] = m_nVertex++;
     	  vertexName.push_back(iid);
-#ifndef DOG
-    	  iid = field1+".2";
-#else
-	  iid = field1+" "+field2+".1";
-#endif
-	  clstMap[m_nVertex] = -1;
+
+          iid = field1+" "+field2+".1";
+          clstMap[m_nVertex] = -1;
     	  vertexNameMap[iid] = m_nVertex++;
     	  vertexName.push_back(iid);
 	}
@@ -177,13 +170,8 @@ int main( int argc , char * argv[] )
       ss.clear(); ss.str( line );
       ss >> field1 >> field2 >> field3 >> field4 >> pos1 >> pos2 >> logOR >> cm_start >> cm_end;
 
-#ifdef DOG 
       ia = vertexNameMap[field1+" "+field2];
       ib = vertexNameMap[field3+" "+field4];
-#else
-      ia = vertexNameMap[field1+"."+field2];
-      ib = vertexNameMap[field3+"."+field4];
-#endif
       
       if (LEN_TYPE == "7th" ) {sw_w = logOR; }
       else if (LEN_TYPE == "cM" ) {sw_w = cm_end - cm_start; }
@@ -215,13 +203,13 @@ int main( int argc , char * argv[] )
 //  } else if (WINSIZE_TYPE == "cM"){
 //    cluster.continuous_empty_wins =  0.6/WINDOW_SIZE ;  
 //  }
-  
-  cluster.continuous_empty_wins = WINDOW_SIZE_nfold; 
+  cluster.continuous_empty_wins = WINDOW_SIZE_nfold;
   cerr << "continuous_empty_wins " << cluster.continuous_empty_wins << endl;
 
+    
+    
   float min_end;
   float n_overhead = seedn * 0.05 + 4.5; // [5,10] <==> [10, 110]
-  //float minlen = WINDOW_SIZE * WINDOW_SIZE_nfold;
   cerr << "n_overhead " << n_overhead << endl;
 
    ofstream fout1((CLUSTER_FILE+".clst.tmp").c_str());
@@ -231,6 +219,8 @@ int main( int argc , char * argv[] )
    while (pm_iter != matches.end())
      {
        while ( cur_pos < (*pm_iter)->pcm_start + WINDOW_SIZE ) cur_pos += WINDOW_SIZE;
+         
+         
        for (am = active_matches.begin(); am != active_matches.end(); )
 	 {
 	   if ( (*am)->pcm_end < cur_pos )
@@ -243,6 +233,7 @@ int main( int argc , char * argv[] )
 	       active_matches.erase( am++ );
 	     } else am++;
 	 }
+         
        while ( pm_iter!= matches.end() && (*pm_iter)->pcm_start <= (cur_pos - WINDOW_SIZE) )
 	 {
 	   if ( (*pm_iter)->pcm_end >= cur_pos )
@@ -261,7 +252,6 @@ int main( int argc , char * argv[] )
        delEdge.clear();
        addEdge.clear();
        cluster.updateInput(active_matches);
-       //cerr << "####### " << cur_pos_start << " " << cur_pos << endl;       
        cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE, WINDOW_SIZE_nfold, fout1); 
        ///size_t n_used = DebugFunc::numOfLeftPairs(cluster);
        ///cout << n_used/(float)active_matches.size() << endl;       
@@ -275,7 +265,7 @@ int main( int argc , char * argv[] )
      for (am = active_matches.begin(); am != active_matches.end(); am++ )
        if ( am == active_matches.begin() || (*am)->pcm_end < min_end ) min_end = (*am)->pcm_end;
      while ( min_end >= cur_pos ) cur_pos += WINDOW_SIZE;
-     
+       
      for (am = active_matches.begin(); am != active_matches.end(); )
        {
 	 if ( (*am)->pcm_end < cur_pos )   
@@ -293,9 +283,7 @@ int main( int argc , char * argv[] )
      //cluster.dissolve(delEdge, addEdge); 
      delEdge.clear();
      cluster.updateInput(active_matches);
-     cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE, WINDOW_SIZE_nfold, fout1); 
-     //cout << cur_pos_start << " # " << cur_pos << endl;
-     //cout << n_used/(float)active_matches.size() << endl;       
+     cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE, WINDOW_SIZE_nfold, fout1);
      cur_pos_start = cur_pos;
    }
 

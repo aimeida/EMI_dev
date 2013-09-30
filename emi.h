@@ -1,5 +1,4 @@
-#define DEBUG
-#define DOG
+////#define DEBUG
 #pragma once
 #include <sys/time.h>
 #include <math.h>
