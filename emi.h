@@ -16,15 +16,10 @@
 #include <list>
 #include "FastGraphCluster.h"
 #include "DebugFunc.h"
+#include "Misc.h"
 using namespace std;
 
-class Pairmatch{
- public:
-  Pairmatch(int i1, int i2, size_t p_start, size_t p_end, float weight, float pcm_start, float pcm_end);
-  int i1, i2;
-  size_t p_start, p_end;
-  float weight, pcm_start, pcm_end;
-};
+class Pairmatch;
 
 class Cluster
 {

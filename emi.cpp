@@ -34,18 +34,6 @@ float getRuntime(long* end, long* start)
   return (*end - *start);
 }
 
-Pairmatch::Pairmatch(int i1, int i2, size_t p_start, size_t p_end, float weight, float pcm_start, float pcm_end):i1(i1),i2(i2),p_start(p_start),p_end(p_end),weight(weight),pcm_start(pcm_start), pcm_end(pcm_end){}
-
-
-float dist2Weight(float dist, float a, float b){
-  float t;
-  t = a * dist + b; 
-  if ( t < MIN_WEIGHT)
-    return MIN_WEIGHT;  
-  //cerr << "dist2w" << (t < 1 ? t : 1.0) << endl;
-  return t < 1 ? t : 1.0;
-}
-
 bool process_param( int argc , char * argv[] )
 {
 	bool pass = true;
@@ -120,10 +108,6 @@ int main( int argc , char * argv[] )
   of_log << "Minimum haplotype size: " << MIN_GRAPH_SIZE << endl;
   of_log << "Output clusters in file: " << CLUSTER_FILE << ".clst.tmp"<< endl;
   
-  float dist2Weight_a = (1 - MIN_WEIGHT)/(LEN_MAX_WEIGHT-LEN_MIN_WEIGHT);
-  float dist2Weight_b = 1 - dist2Weight_a * LEN_MAX_WEIGHT;  
-  //cerr << dist2Weight_a << "##" << dist2Weight_b << endl;
-  
   // read fam files
   map<string,int> vertexNameMap;
   map<int, int> clstMap;
@@ -158,13 +142,18 @@ int main( int argc , char * argv[] )
   Pairmatch *cur_match;
   list<Pairmatch * > matches, active_matches;
   list< Pairmatch * >::iterator pm_iter, am;
-  
   float cm_start, cm_end;
+
+  float dist2Weight_a = (1 - MIN_WEIGHT)/(LEN_MAX_WEIGHT-LEN_MIN_WEIGHT);
+  float dist2Weight_b = 1 - dist2Weight_a * LEN_MAX_WEIGHT;  
+  //cerr << dist2Weight_a << "##" << dist2Weight_b << endl;
+
   ifstream input_seg( INPUT_FILE.c_str() );
   if (!input_seg){
     cerr << "can not open input file, "<< INPUT_FILE << endl;
     exit(0);
   }
+
   while( getline( input_seg , line ) )
     {
       ss.clear(); ss.str( line );
@@ -179,11 +168,11 @@ int main( int argc , char * argv[] )
 
       if (WINSIZE_TYPE == "cM"){  
 	if ( cm_end - cm_start  < WINDOW_SIZE ) continue;		
-	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, dist2Weight_a, dist2Weight_b), cm_start, cm_end);      
+	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, dist2Weight_a, dist2Weight_b, MIN_WEIGHT), cm_start, cm_end);      
       }
       else if (WINSIZE_TYPE == "bp") {
 	if ( pos2 - pos1 < WINDOW_SIZE ) continue;
-	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, dist2Weight_a, dist2Weight_b), (float)pos1, (float) pos2);
+	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, dist2Weight_a, dist2Weight_b, MIN_WEIGHT), (float)pos1, (float) pos2);
       }
       matches.push_back( cur_match);
     }     
@@ -220,7 +209,7 @@ int main( int argc , char * argv[] )
     if (pm_iter != matches.end()) {
        while ( cur_pos < (*pm_iter)->pcm_start + WINDOW_SIZE ) cur_pos += WINDOW_SIZE;
          
-            for (am = active_matches.begin(); am != active_matches.end(); ) {
+           for (am = active_matches.begin(); am != active_matches.end(); ) {
 	   if ( (*am)->pcm_end < cur_pos )
 	     {
 	       delete cluster.m_neighbor[(*am)->i1][(*am)->i2]; // do NOT delete twice !!
