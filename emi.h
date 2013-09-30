@@ -42,24 +42,24 @@ class EdgeInfo
   float weight;
   size_t p0, p1;
 };
-
 class MisPair
 {
+ public:
+ MisPair(float p_start, float p_end, int flag, float freq):p_start(p_start),p_end(p_end), flag(flag){ freqs.push_back(freq); };
+  float p_start, p_end;
+  int flag;
+  vector<float> freqs;
+};
+
+/*
+  class MisPair
+  {
  public:
  MisPair(float p_start, float p_end, int flag):p_start(p_start),p_end(p_end), flag(flag){};
   float p_start, p_end;
   int flag;
-};
-
-/* no polymorphism ??
-class MisPair
-{
- public:
- MisPair(size_t p_start, size_t p_end, int flag):p_start(p_start),p_end(p_end), flag(flag){};
-  size_t p_start, p_end;
-  int flag;
-};
+  };
 */
-
+ 
 long myclock();
 

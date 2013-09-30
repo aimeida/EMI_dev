@@ -82,6 +82,14 @@ void DebugFunc::printVec(set<int> &m)
   cerr << endl;
 }
 
+void DebugFunc::printVec(vector<float> &m)
+{
+  for (vector <float>::iterator j=m.begin(); j!=m.end(); j++)  
+    cerr << *j << "\t";
+  cerr << endl;
+}
+
+
 void DebugFunc::printNeighbor(int index, FastGraphCluster &f)
 {
   map<int, EdgeInfo*>::iterator imap;

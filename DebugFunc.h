@@ -24,6 +24,7 @@ class DebugFunc
   static int numOfLeftPairs(FastGraphCluster &f); 
   static void mapToVec(map<int, int> &nodeCount, set< pair<int, int>, ComparePair > &sortCount);
   static void printVec(set<int> &m);
+  static void printVec(vector<float> &m);
   static int countTransition(list<Pairmatch * > matches, float WINDOW_SIZE, float &p01, float &p10); // not by reference
 };
 

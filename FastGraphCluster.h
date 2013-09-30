@@ -1,6 +1,7 @@
 #pragma once
 #include <utility>
 #include <string>
+#include <numeric>
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -41,15 +42,16 @@ class FastGraphCluster
   ~FastGraphCluster(void);
   friend class DebugFunc;
   void updateInput(list<Pairmatch * > &active_matches);
-  void fastClusterCore(int seedn, float n_overhead, float freq_th, float minLen, ofstream& fout1);
+  void fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1);
   map <int, EdgeInfo* > *m_neighbor;
   map <int, Cluster* > result_clst;
   //// IBD pairs that are missed by beagle in current windows, key pairs are ordered
   map <pair<int, int>, MisPair* > misPairs;
   
   int clst_topindex;
+  int continuous_empty_wins; // max continuous_empty_win allowed 
   int numOfLeftPairs(); // currect window number of IBD pairs that are not used 
-  void printAllClst(ofstream& fout);
+  void printAllClst(ofstream& fout, float window_size);
   void dissolve();
   void dissolve(vector< pair <int, int > > &delEdge, vector< pair <int, int > > &addEdge);
   
@@ -70,5 +72,7 @@ class FastGraphCluster
 	float getWeight(float edgeweight,float vertexweight, float seedW=NULL);
 	void deleteClst(int cid, Cluster * i_clst=NULL);
 	void initMisFlag();  // set flag = 0
-	void printMissing(float minLen); // print current pairs in current window
+	void refine_bound(vector <float>::iterator &ri, float &pair_start, float &pair_end, float raw_start, float raw_end, vector <float> &freqs);
+	void refine_bound(vector <float>::iterator &ri, float &pair_start, float &pair_end, float window_size, float raw_start, float raw_end, vector <float> &freqs, float freq_th, float window_size_nfold, bool verbose = NULL);
+	void printMissing(float window_size, float minLen, float freq_th); // print current pairs in current window
 };

@@ -6,10 +6,13 @@ using namespace std;
 
 #define DEBUGMODE 
 #define UNEXPLORED -1
+#define P_CLST_STOP 0.2
+#define FREQ_ERROR 0.3 // add more before counting
 #define getmax(a,b) ((a)>(b)?(a):(b))
+#define getmin(a,b) ((a)<(b)?(a):(b))
 
 extern vector<string> vertexName;
-extern float cur_pos_start;
+////extern float cur_pos_start; // don't use this, strictly use adj windows, window_size is enough
 extern float cur_pos;
 extern int incre_cutoff;
 
@@ -55,29 +58,103 @@ void FastGraphCluster::initMisFlag()
 {
   map <pair<int, int>, MisPair*>::iterator i;
   for (i=misPairs.begin(); i!=misPairs.end(); i++){
-    if ((i->second)->p_end < cur_pos)  // output pairs with flag<0 before moving to next window 
-      (i->second)->flag = -(i->second)->flag;
+      if ((i->second)->flag < 0 ) {// not updated on this window
+          (i->second)->freqs.push_back(0);
+          (i->second)->p_end = cur_pos;
+      }
+      (i->second)->flag -= 1;
   }
 }
 
-void FastGraphCluster::printMissing(float minLen)
+void FastGraphCluster::refine_bound(vector <float>::iterator &ri, float &pair_start, float &pair_end, float raw_start, float raw_end, vector <float> &freqs)
 {
+    pair_start = raw_start;
+    pair_end = raw_end;
+    ri = freqs.begin();
+}
+
+void FastGraphCluster::refine_bound(vector <float>::iterator &ri, float &pair_start, float &pair_end, float window_size, float raw_start, float raw_end, vector <float> &freqs, float freq_th, float window_size_nfold, bool verbose)
+{
+    
+    // eg. can be a problem for example like this: 1 1 0 0 0 1
+    pair_start=-1;
+    pair_end=-1;
+    ri = freqs.begin();
+
+    int ni=0, nlen = freqs.size();
+    float vj, v_min = 0;
+    float sum_freq = 0;
+    for (vector <float>::iterator i=freqs.begin(); i!=freqs.end(); i++) sum_freq += *i ;
+    
+    v_min = getmin(*ri,freqs.back());
+    while ( ( v_min < freq_th || sum_freq/nlen < freq_th ) && (nlen >= window_size_nfold) ) {
+        if ( *ri == v_min) {
+            ni++;
+            ri++;
+        } else {
+            freqs.pop_back();
+        }
+        sum_freq -= v_min;
+        nlen--;
+        v_min = getmin(*ri,freqs.back());
+        //if (verbose) cerr << "hi " <<  sum_freq << " " << v_min << " " << nlen << " " << freq_th << endl;
+    }
+    
+
+    if (nlen >= window_size_nfold){
+        pair_start = raw_start + window_size * ni;
+        pair_end = raw_start + window_size * (ni+nlen);
+    }
+}
+
+void FastGraphCluster::printMissing(float window_size, float window_size_nfold, float freq_th)
+{
+    float pair_start, pair_end;
+    vector<float>::iterator ri;
   // don't erase while iterating, may cause problem
   vector <map <pair<int, int>, MisPair* >::iterator> rms;
   for (map <pair<int, int>, MisPair* >::iterator i=misPairs.begin(); i!=misPairs.end(); i++){
-    if ((i->second)->flag < 0){ 
-      if ((i->second)->p_end - (i->second)->p_start >= minLen){ 
-	cout << -(i->second)->flag << "\t" ;
-	cout << vertexName[(i->first).first] << "\t" << vertexName[(i->first).second] << "\t";
-	cout << (i->second)->p_start << "\t" << (i->second)->p_end << endl; 
-      }
-      rms.push_back(i);
+     if ( abs((i->second)->flag) > continuous_empty_wins){
+        //cout << i->first.first << " " << i->first.second << " " << (i->second)->p_end-(i->second)->p_start << endl;
+        rms.push_back(i);
+         
+       ri = (i->second)->freqs.begin();
+         
+       refine_bound(ri, pair_start, pair_end, window_size, (i->second)->p_start, (i->second)->p_end, (i->second)->freqs, freq_th, window_size_nfold);
+      
+//         if (i->first.first==2522 && i->first.second==2546){
+//           cerr <<"before\t" << cur_pos << "\t" << (i->second)->p_start << "\t" << (i->second)->p_end << "\t";
+//           DebugFunc::printVec(i->second->freqs);
+//         }
+//         if (i->first.first==2522 && i->first.second==2546){
+//             refine_bound(ri, pair_start, pair_end, window_size, (i->second)->p_start, (i->second)->p_end, (i->second)->freqs, freq_th, window_size_nfold, 1);}
+//         else{
+//             refine_bound(ri, pair_start, pair_end, window_size, (i->second)->p_start, (i->second)->p_end, (i->second)->freqs, freq_th, window_size_nfold);}
+
+//         if (i->first.first==2522 && i->first.second==2546){
+//             cerr <<"after\t" << cur_pos << "\t" << pair_start << "\t" << pair_end << "\t";
+//             DebugFunc::printVec(i->second->freqs);
+//             cerr << pair_end << endl;
+//         }
+         
+       /////refine_bound(ri, pair_start, pair_end, (i->second)->p_start, (i->second)->p_end, (i->second)->freqs);
+	
+	   if (pair_end > 0){
+	  ////cout << (i->second)->flag << "\t" << vertexName[(i->first).first] << "\t" << vertexName[(i->first).second] << "\t";
+      cout << (i->second)->flag << "\t" << (i->first).first << "\t" << (i->first).second << "\t";
+	  cout << pair_start << "\t" << pair_end <<  "\t" ;//<< endl;
+	  for (;ri!=(i->second)->freqs.end(); ri++)
+	    cout << *ri << "\t" ;
+	  cout << endl;
+	  }
     }
   }
-  vector <map <pair<int, int>, MisPair* >::iterator>::iterator ri;
-  for (ri=rms.begin(); ri!=rms.end();ri++){
-    delete (*ri)->second;
-    misPairs.erase(*ri);
+    
+  vector <map <pair<int, int>, MisPair* >::iterator>::iterator mi;
+  for (mi=rms.begin(); mi!=rms.end();mi++){
+    vector<float>().swap(((*mi)->second)->freqs);
+    delete (*mi)->second;
+    misPairs.erase(*mi);
   }
 }
 
@@ -128,12 +205,12 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
 
 
 // print all Clusters in current window.
-void FastGraphCluster::printAllClst(ofstream& fout)
+void FastGraphCluster::printAllClst(ofstream& fout, float window_size)
 {
   for (map <int, Cluster* >::iterator ci=result_clst.begin(); ci!=result_clst.end(); ci++)
     {   
       Cluster * cl = ci->second;
-      fout << ci->first << "\t" << cur_pos_start << "\t" << cur_pos << "\t" << cl->nodes.size() << "\t";
+      fout << ci->first << "\t" << cur_pos - window_size << "\t" << cur_pos << "\t" << cl->nodes.size() << "\t";
       for (set <int>::iterator j=cl->nodes.begin(); j!=cl->nodes.end(); j++)
 	fout << vertexName[*j] << "\t";
       fout << endl;
@@ -169,10 +246,10 @@ void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
   seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);
 }
 
-void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float minLen, ofstream& fout1)
+void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1)
 {
   set<int> result, changed;
-  int freq_thn = (int) seedn * freq_th;
+  int freq_thn = (int) seedn * (freq_th-FREQ_ERROR);  // allow more segments to be included
   size_t n_clst_all = 0, n_clst_ext = 0;
   //cerr << "clst size " <<  result_clst.size() << endl;  // should be 0
   while (!seedArray->empty() && seedArray->top >= m_nLowerSize-1) {
@@ -192,10 +269,9 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
       for (int dn=0; dn<seedn; dn++){
         
           int core_ext_size = core_ext.size();
-          if (dn >= n_overhead && core_ext_size <= 0.2*dn) { // 0.2 is arbitary, need more tests 
+          if (dn >= n_overhead && core_ext_size <= P_CLST_STOP * dn) { // 0.2 is arbitary, need more tests
               if (core_ext_size) {
                   float n_fold = seedn/(float)dn;
-                   //cerr << "## " << core_ext_size << " " << dn<<  endl;
                   for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++) i->second *= n_fold;
                } 
               break;
@@ -215,6 +291,7 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
 	map<pair<int,int>, int> pairCount;
 	set<int>::iterator ai,ci,bi;
 	int id1, id2;
+        
 	//step 1: missing edges between core_ext and core (look at this first, use freq_thn as filter)
 	map<int, int> ext_node;
 	set<int> ext_node_set;
@@ -223,7 +300,6 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
           addKey(ext_node, *ai, i->second);
     }
 	for (map<int, int>::iterator i = ext_node.begin(); i!=ext_node.end(); i++){
-      // if (i->second >= seedn-2) cerr << "freq_thn " << freq_thn << " " << i->second << endl;
 	  if (i->second < freq_thn) continue;
 	  ext_node_set.insert(i->first);   // save time for step 2? while adding pairs
 	  for (set <int>::iterator j = result.begin(); j!=result.end(); j++){
@@ -254,29 +330,41 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
           
     ext_node_set.clear();
     MisPair * p_pair;
+    float new_freq;
     for (map<pair<int,int>, int>::iterator pi=pairCount.begin();pi!=pairCount.end();pi++){
-        //if (pi->second > seedn) cerr << "hello " << pi->second << endl;
-      if (pi->second < freq_thn) continue; //must be frequent enough
+      //if (pi->second > seedn) cerr << "hello " << pi->second << endl;
+      if ( pi->second < freq_thn ) continue; //must be frequent enough
       id1=(pi->first).first; 
       id2=(pi->first).second;
       mi = misPairs.find(pi->first);
-      
+   
       // if exist in pre-window, update position
-      if (mi != misPairs.end()) { 
-	(mi->second)->p_end = cur_pos; 
-	(mi->second)->flag = result.size();	    
-      } else { // fixme: window as position for now
-	    // if not exist in pre-window and not reported, create new
-	if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {
-	  p_pair = new MisPair(cur_pos_start, cur_pos, result.size());
-	  misPairs[pi->first] = p_pair;
-	}
-      }
+      if (mi != misPairs.end()) {
+         // if (id1 == 347 && id2==1517) cerr << "%%%%%%%%%%%%%%%%%%%%%%%%" << cur_pos << endl;
+          (mi->second)->flag = 0;
+          new_freq = pi->second/(float)seedn;
+          if ((mi->second)->p_end < cur_pos) {
+              (mi->second)->p_end = cur_pos;
+              (mi->second)->freqs.push_back(new_freq);
+          } else if ( new_freq > (mi->second)->freqs.back() ) {      // pair of segments have been found by other clusters
+                (mi->second)->freqs.pop_back();
+                (mi->second)->freqs.push_back(new_freq);
+          }
+    //  if ((cur_pos - (mi->second)->p_start)/window_size > (mi->second)->freqs.size())
+    //      cerr << "err " << id1 << " " << id2 << " " << (cur_pos - (mi->second)->p_start)/window_size << " " <<(mi->second)->freqs.size() << endl;
+
+ //   if (id1 == 347 && id2==1517) cerr << "@@@@@@@@@@@@@@@@@@@@@@@@@@" <<  cur_pos << " " << (mi->second)->freqs.size() << " " << ((mi->second)->p_end-(mi->second)->p_start)/window_size << endl;
+          
+      } else if (m_neighbor[id1].find(id2)== m_neighbor[id1].end()) {  // if not exist in pre-window and not reported, create new
+              p_pair = new MisPair(cur_pos-window_size, cur_pos, 0, (pi->second)/(float)seedn);
+	          misPairs[pi->first] = p_pair;
+	  }
+        
     }
     pairCount.clear();
-      }    
+   }
     }
-
+      
     heap.current_node_id.clear();
     result.clear();
     for ( set<int>::iterator iter = changed.begin() ; iter != changed.end() ; iter++ ) {
@@ -292,9 +380,9 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
   
   if (!seedArray->empty())
     delete seedArray;
-  printMissing(minLen);
+  printMissing(window_size, window_size_nfold, freq_th);
   initMisFlag();
-
+  //cerr << "####### " << cur_pos << endl;
   //float n_clst_ext_p = (float)(n_clst_ext+1)/(result_clst.size()+1);
   //cerr << cur_pos << "## " << n_clst_ext << " " << result_clst.size() << " " << n_clst_ext_p << endl;
 }

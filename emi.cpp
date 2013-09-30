@@ -68,6 +68,7 @@ bool process_param( int argc , char * argv[] )
 		else if ( string(argv[i]) == "-nex" ) { seedn = atoi( argv[++i] ); } // num of extened clusters
 		else if ( string(argv[i]) == "-fqt" ) { freq_th=(float)atof(argv[++i]);} 
 		else if ( string(argv[i]) == "-ict" ) { incre_cutoff=atoi(argv[++i]);} 
+		else if ( string(argv[i]) == "-ict" ) { incre_cutoff=atoi(argv[++i]);} 
 		else CLUSTER_FILE = argv[i];
 	}
 	if ( WINDOW_SIZE <= 0 ) { cerr << "ERROR: -win " << WINDOW_SIZE << ": must be greater than zero" << endl; pass = false; }
@@ -76,6 +77,7 @@ bool process_param( int argc , char * argv[] )
 	if ( MIN_CLUSTER_DENSITY <= 0 || MIN_CLUSTER_DENSITY > 1 ) { cerr << "ERROR: -density " << MIN_CLUSTER_DENSITY << ": must be greater than zero and less than or equal to one" << endl; pass = false; }
 	if ( MIN_GRAPH_SIZE <= 2 ) { cerr << "ERROR: -min " << MIN_GRAPH_SIZE << ": must be greater than 1" << endl; pass = false; }
 	if (seedn < 5) {cerr << "ERROR: -nex " <<seedn << ": must be greater than 4" << endl; pass = false;}
+	if (freq_th < 0.5) {cerr << "ERROR: -fqt " << freq_th << ": must be greater than 0.5" << endl; pass = false;}
 	if ( ! pass ) cerr << endl;
 	return pass;
 }
@@ -207,14 +209,22 @@ int main( int argc , char * argv[] )
   long start = myclock();
   
   FastGraphCluster cluster(MIN_CLUSTER_DENSITY, MIN_GRAPH_SIZE, MIN_CLUSTER_DENSITY-0.1, m_nVertex);
-  size_t ncluster;
+  
+//  if (WINSIZE_TYPE == "bp") {
+//    cluster.continuous_empty_wins =  600000/WINDOW_SIZE; 
+//  } else if (WINSIZE_TYPE == "cM"){
+//    cluster.continuous_empty_wins =  0.6/WINDOW_SIZE ;  
+//  }
+  
+  cluster.continuous_empty_wins = WINDOW_SIZE_nfold; 
+  cerr << "continuous_empty_wins " << cluster.continuous_empty_wins << endl;
+
   float min_end;
+  float n_overhead = seedn * 0.05 + 4.5; // [5,10] <==> [10, 110]
+  //float minlen = WINDOW_SIZE * WINDOW_SIZE_nfold;
+  cerr << "n_overhead " << n_overhead << endl;
 
    ofstream fout1((CLUSTER_FILE+".clst.tmp").c_str());
-
-   float n_overhead = seedn * 0.05 + 4.5; // [5,10] <==> [10, 110]
-   cerr << "n_overhead " << n_overhead << endl;
-
    vector< pair <int, int > > delEdge;
    vector< pair <int, int > > addEdge;
    pm_iter = matches.begin();
@@ -251,9 +261,8 @@ int main( int argc , char * argv[] )
        delEdge.clear();
        addEdge.clear();
        cluster.updateInput(active_matches);
-       cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
-
-       //cout << cur_pos_start << " # " << cur_pos << endl;       
+       //cerr << "####### " << cur_pos_start << " " << cur_pos << endl;       
+       cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE, WINDOW_SIZE_nfold, fout1); 
        ///size_t n_used = DebugFunc::numOfLeftPairs(cluster);
        ///cout << n_used/(float)active_matches.size() << endl;       
        cur_pos_start = cur_pos;
@@ -284,7 +293,7 @@ int main( int argc , char * argv[] )
      //cluster.dissolve(delEdge, addEdge); 
      delEdge.clear();
      cluster.updateInput(active_matches);
-     cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE * WINDOW_SIZE_nfold, fout1); 
+     cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE, WINDOW_SIZE_nfold, fout1); 
      //cout << cur_pos_start << " # " << cur_pos << endl;
      //cout << n_used/(float)active_matches.size() << endl;       
      cur_pos_start = cur_pos;
