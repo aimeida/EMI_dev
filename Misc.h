@@ -25,4 +25,4 @@ class CmdOpt{
 float dist2Weight(float dist, float a, float b, float min_weight);
 string intToString(int a);
 bool read_fam_file(string fam_file, int &m_nVertex, map<string,int> &vertexNameMap, vector<string> &vertexName);
-bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<string,int> &vertexNameMap, CmdOpt cmdopt);
+bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<string,int> &vertexNameMap, CmdOpt &cmdopt);

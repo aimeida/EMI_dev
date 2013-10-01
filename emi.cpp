@@ -206,9 +206,10 @@ int main( int argc , char * argv[] )
        cur_pos_start = cur_pos;
      }
   fout1.close();
-  delete cluster;
-  cerr << "size " <<  matches.size() << " " << active_matches.size() << endl;
   end = myclock();
+
+  delete cluster;
+  //cerr << "size " <<  matches.size() << " " << active_matches.size() << endl;
   cerr << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
   }
 

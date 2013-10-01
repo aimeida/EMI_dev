@@ -42,7 +42,7 @@ bool read_fam_file(string fam_file, int &m_nVertex, map<string,int> &vertexNameM
   return true;
 }
 
-bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<string,int> &vertexNameMap, CmdOpt cmdopt){
+bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<string,int> &vertexNameMap, CmdOpt &cmdopt){
   ifstream input_seg( input_file.c_str() );
   if (!input_seg) return false;
   stringstream ss;
