@@ -38,18 +38,15 @@ public:
 class FastGraphCluster
 {
  public:
-  FastGraphCluster(float density, int lowersize,float lowerincrease, int m_nVertex);
+  FastGraphCluster(float density, int lowersize,float lowerincrease, int m_nVertex, int cew);
   ~FastGraphCluster(void);
   friend class DebugFunc;
   void updateInput(list<Pairmatch * > &active_matches);
   void fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1);
   map <int, EdgeInfo* > *m_neighbor;
   map <int, Cluster* > result_clst;
-  //// IBD pairs that are missed by beagle in current windows, key pairs are ordered
-  map <pair<int, int>, MisPair* > misPairs;
-  
   int clst_topindex;
-  int continuous_empty_wins; // max continuous_empty_win allowed 
+  float cur_pos;
   int numOfLeftPairs(); // currect window number of IBD pairs that are not used 
   void printAllClst(ofstream& fout, float window_size);
   void dissolve();
@@ -67,6 +64,8 @@ class FastGraphCluster
 	map<int, int > clstID;	
 
  private:
+	int continuous_empty_wins; // max continuous_empty_win allowed 
+	map <pair<int, int>, MisPair* > misPairs;
 	int buildCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed);
 	void extendCore(set<int> &surround,set<int> &core_id, set<int> &node_id, int dn);
 	float getWeight(float edgeweight,float vertexweight, float seedW=NULL);
@@ -74,5 +73,5 @@ class FastGraphCluster
 	void initMisFlag();  // set flag = 0
 	void refine_bound(vector <float>::iterator &ri, float &pair_start, float &pair_end, float raw_start, float raw_end, vector <float> &freqs);
 	void refine_bound(vector <float>::iterator &ri, float &pair_start, float &pair_end, float window_size, float raw_start, float raw_end, vector <float> &freqs, float freq_th, float window_size_nfold, bool verbose = NULL);
-	void printMissing(float window_size, float minLen, float freq_th); // print current pairs in current window
+	void printMissing(float window_size, float minLen, float freq_th, ofstream& fout1); // print current pairs in current window
 };

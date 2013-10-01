@@ -12,26 +12,24 @@ using namespace std;
 #define getmin(a,b) ((a)<(b)?(a):(b))
 
 extern vector<string> vertexName;
-extern float cur_pos;
 extern int incre_cutoff;
 
-FastGraphCluster::FastGraphCluster(float density,int lowersize,float lowerincrease, int m_nVertex):m_nLowerSize(lowersize),m_dLowDen(density),m_dLowerIncrease(lowerincrease), m_nVertex(m_nVertex), clst_topindex(0)
+FastGraphCluster::FastGraphCluster(float density,int lowersize,float lowerincrease, int m_nVertex, int cew):m_nLowerSize(lowersize),m_dLowDen(density),m_dLowerIncrease(lowerincrease), m_nVertex(m_nVertex), continuous_empty_wins(cew), clst_topindex(0)
 {
-        int i;
-	m_neighbor = new map<int, EdgeInfo* >[m_nVertex]; 
+        m_neighbor = new map<int, EdgeInfo* >[m_nVertex]; 
 	neighborWeightCnt = new float[m_nVertex];
 	m_pHeapNode = new FiboNode*[m_nVertex];
 	m_pHeapNode2 = new FiboNode*[m_nVertex];
-	for (i=0;i<m_nVertex;i++)
-	  {
-	    m_pHeapNode[i] = new FiboNode(HeapNode(UNEXPLORED,i,0));
-	    m_pHeapNode2[i] = m_pHeapNode[i];
-	    clstID[i] = -1;
-	  }
+	for (int i=0;i<m_nVertex;i++) {
+	  m_pHeapNode[i] = new FiboNode(HeapNode(UNEXPLORED,i,0));
+	  m_pHeapNode2[i] = m_pHeapNode[i];
+	  clstID[i] = -1;
+	}
 }
 
 FastGraphCluster::~FastGraphCluster(void)
 {
+  cerr << "delete called :-) " << endl;
   for (int i=0; i < m_nVertex; i++)
     {
       delete m_pHeapNode[i];
@@ -42,6 +40,9 @@ FastGraphCluster::~FastGraphCluster(void)
     delete[] m_neighbor;
     for (map <int, Cluster* >::iterator ci=result_clst.begin(); ci!=result_clst.end(); ci++)
       delete ci->second;
+    for (map <pair<int, int>, MisPair* >::iterator mi=misPairs.begin(); mi!=misPairs.end();mi++) 
+      delete mi->second;
+    misPairs.clear();
 }
 
 void FastGraphCluster::deleteClst(int cid, Cluster * i_clst /*=NULL*/)
@@ -106,7 +107,7 @@ void FastGraphCluster::refine_bound(vector <float>::iterator &ri, float &pair_st
     }
 }
 
-void FastGraphCluster::printMissing(float window_size, float window_size_nfold, float freq_th)
+void FastGraphCluster::printMissing(float window_size, float window_size_nfold, float freq_th, ofstream& fout1)
 {
     float pair_start, pair_end;
     vector<float>::iterator ri;
@@ -129,12 +130,12 @@ void FastGraphCluster::printMissing(float window_size, float window_size_nfold, 
 //             refine_bound(ri, pair_start, pair_end, window_size, (i->second)->p_start, (i->second)->p_end, (i->second)->freqs, freq_th, window_size_nfold);}
     
 	   if (pair_end > 0){
-	  cout << (i->second)->flag << "\t" << vertexName[(i->first).first] << "\t" << vertexName[(i->first).second] << "\t";
-      //cout << (i->second)->flag << "\t" << (i->first).first << "\t" << (i->first).second << "\t";
-	  cout << pair_start << "\t" << pair_end << endl;
+	  ///cout << (i->second)->flag << "\t" << vertexName[(i->first).first] << "\t" << vertexName[(i->first).second] << "\t";
+	     fout1 << (i->first).first << "\t" << (i->first).second << "\t" << pair_start << "\t" << pair_end << endl;
+           
 //	  for (;ri!=(i->second)->freqs.end(); ri++)
-//	    cout << *ri << "\t" ;
-//	  cout << endl;
+//	    fout1 << *ri << "\t" ;
+//	  fout1 << endl;
 	  }
     }
   }
@@ -246,7 +247,7 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
     int i = seedArray->getMax();   
     buildCore(i, result, heap, changed); // update clst_topindex, added to result_clst
     // make sure  with\out extension, core size stays the same.
-    //fout1 << cur_pos << "\t" << result.size() << endl; 
+    // cerr << cur_pos << "\t" << result.size() << endl;
     if (heap.m_nNode > 0){ // there are nodes left after the core
       map< set <int>, int > core_ext;  // count number of times it appears
       set<int> surround;
@@ -259,11 +260,11 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
         
           int core_ext_size = core_ext.size();
           if (dn >= n_overhead && core_ext_size <= P_CLST_STOP * dn) { // 0.2 is arbitary, need more tests
-              if (core_ext_size) {
-                  float n_fold = seedn/(float)dn;
-                  for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++) i->second *= n_fold;
-               } 
-              break;
+	    if (core_ext_size) {
+	      float n_fold = seedn/(float)dn;
+	      for (map< set <int>, int >::iterator i=core_ext.begin(); i!=core_ext.end(); i++) i->second *= n_fold;
+	    } 
+	    break;
           } // at least 50% calculations can be saved
     
           extendCore(surround, result, heap.current_node_id, dn);
@@ -367,7 +368,7 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
   
   if (!seedArray->empty())
     delete seedArray;
-  printMissing(window_size, window_size_nfold, freq_th);
+  printMissing(window_size, window_size_nfold, freq_th, fout1);
   initMisFlag();
   //cerr << "####### " << cur_pos << endl;
   //float n_clst_ext_p = (float)(n_clst_ext+1)/(result_clst.size()+1);

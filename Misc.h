@@ -19,7 +19,7 @@ class CmdOpt{
  public:
   string len_type, winsize_type;
   float window_size, min_weight, dist2Weight_a, dist2Weight_b, window_size_nfold;
-  int iter_count;
+  int iter_count, continuous_empty_wins;
 };
 
 float dist2Weight(float dist, float a, float b, float min_weight);
