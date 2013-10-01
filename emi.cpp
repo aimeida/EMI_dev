@@ -110,90 +110,39 @@ int main( int argc , char * argv[] )
   
   // read fam files
   map<string,int> vertexNameMap;
-  map<int, int> clstMap;
-  stringstream ss;
-  float sw_w, logOR;
-  string line,linew, iid, field1, field2, field3, field4;
-  size_t pos1, pos2;
-  int ia, ib, m_nVertex=0;
-  if (FAM_FILE!="")
-    {
-      of_log << endl << "Reading FAMily file " << FAM_FILE << endl;
-      ifstream fam_list( FAM_FILE.c_str() );
-      while ( getline( fam_list , line ) )
-	{
-    	  ss.clear(); ss.str( line );
-    	  ss >> field1 >> field2;
-    	  iid = field1+" "+field2+".0";
-    	  clstMap[m_nVertex] = -1;
-    	  vertexNameMap[iid] = m_nVertex++;
-    	  vertexName.push_back(iid);
-
-          iid = field1+" "+field2+".1";
-          clstMap[m_nVertex] = -1;
-    	  vertexNameMap[iid] = m_nVertex++;
-    	  vertexName.push_back(iid);
-	}
-      fam_list.close();
-      of_log << m_nVertex/2 << " individual read from FAM file" << endl;
-    }
+  ifstream fam_list( FAM_FILE.c_str());      
+  if (!fam_list) {
+    cerr << "can not open input file, "<< INPUT_FILE << endl;
+    exit(0);
+  } 
+  int m_nVertex = read_fam_file(fam_list, vertexNameMap, vertexName);
+  of_log << m_nVertex/2 << " individual read from FAM file" << endl;
 
    // read seg, equal weight
-  Pairmatch *cur_match;
-  list<Pairmatch * > matches, active_matches;
-  list< Pairmatch * >::iterator pm_iter, am;
-  float cm_start, cm_end;
 
-  float dist2Weight_a = (1 - MIN_WEIGHT)/(LEN_MAX_WEIGHT-LEN_MIN_WEIGHT);
-  float dist2Weight_b = 1 - dist2Weight_a * LEN_MAX_WEIGHT;  
-  
   CmdOpt cmdopt;
   cmdopt.len_type = LEN_TYPE;
   cmdopt.winsize_type = WINSIZE_TYPE;
   cmdopt.window_size = WINDOW_SIZE;
   cmdopt.min_weight = MIN_WEIGHT;
-  cmdopt.dist2Weight_a = dist2Weight_a;
-  cmdopt.dist2Weight_b = dist2Weight_b;
+  cmdopt.dist2Weight_a = (1 - MIN_WEIGHT)/(LEN_MAX_WEIGHT-LEN_MIN_WEIGHT); 
+  cmdopt.dist2Weight_b = 1 - cmdopt.dist2Weight_a * LEN_MAX_WEIGHT;   
   cmdopt.iter_count = 1;
 
   ifstream input_seg( INPUT_FILE.c_str() );
   if (!input_seg){
     cerr << "can not open input file, "<< INPUT_FILE << endl;
     exit(0);
-  }
-
-  while( getline( input_seg , line ) )
-    {
-      ss.clear(); ss.str( line );
-      ss >> field1 >> field2 >> field3 >> field4 >> pos1 >> pos2 >> logOR >> cm_start >> cm_end;
-
-      ia = vertexNameMap[field1+" "+field2];
-      ib = vertexNameMap[field3+" "+field4];
-      
-      if (cmdopt.len_type == "7th" ) {sw_w = logOR; }
-      else if (cmdopt.len_type == "cM" ) {sw_w = cm_end - cm_start; }
-      else if (cmdopt.len_type == "bp" ) {sw_w = pos2 - pos1;}
-
-      if (cmdopt.winsize_type == "cM"){  
-	if ( cm_end - cm_start  < cmdopt.window_size) continue;		
-	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, cmdopt.dist2Weight_a, cmdopt.dist2Weight_b, cmdopt.min_weight), cm_start, cm_end);      
-      }
-      else if (WINSIZE_TYPE == "bp") {
-	if ( pos2 - pos1 < WINDOW_SIZE ) continue;
-	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, cmdopt.dist2Weight_a, cmdopt.dist2Weight_b, cmdopt.min_weight), (float)pos1, (float) pos2);
-	
-      }
-      matches.push_back( cur_match);
-    }     
-  
-  input_seg.close();
-  
-  //cerr << endl << "Done with loading IBD shared segments" << endl;
-  
+  } 
+  list<Pairmatch * > matches, active_matches;
+  read_beagle_input(input_seg, matches, vertexNameMap, cmdopt);
   vertexNameMap.clear();
-  EdgeInfo * p_edge;
+  //cerr << endl << "Done with loading IBD shared segments" << endl;  
+
   long start = myclock();
-  
+  list< Pairmatch * >::iterator pm_iter, am;
+  EdgeInfo * p_edge;
+
   FastGraphCluster cluster(MIN_CLUSTER_DENSITY, MIN_GRAPH_SIZE, MIN_CLUSTER_DENSITY-0.1, m_nVertex);
   
 //  if (WINSIZE_TYPE == "bp") {
@@ -203,21 +152,18 @@ int main( int argc , char * argv[] )
 //  }
   cluster.continuous_empty_wins = WINDOW_SIZE_nfold;
   cerr << "continuous_empty_wins " << cluster.continuous_empty_wins << endl;
-
-    
-    
-  float min_end;
   float n_overhead = seedn * 0.05 + 4.5; // [5,10] <==> [10, 110]
   cerr << "n_overhead " << n_overhead << endl;
 
-  ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(cmdopt.iter_count)).c_str());
 
+  ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(cmdopt.iter_count)).c_str());
+  float min_end;
   vector< pair <int, int > > delEdge;
   vector< pair <int, int > > addEdge;
 
-    for (pm_iter = matches.begin(); pm_iter != matches.end() || !active_matches.empty(); ) {
+  for (pm_iter = matches.begin(); pm_iter != matches.end() || !active_matches.empty(); ) {
     if (pm_iter != matches.end()) {
-       while ( cur_pos < (*pm_iter)->pcm_start + WINDOW_SIZE ) cur_pos += WINDOW_SIZE;
+      while ( cur_pos < (*pm_iter)->pcm_start + WINDOW_SIZE ) cur_pos += WINDOW_SIZE;
          
            for (am = active_matches.begin(); am != active_matches.end(); ) {
 	   if ( (*am)->pcm_end < cur_pos )
