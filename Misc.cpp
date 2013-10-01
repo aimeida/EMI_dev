@@ -17,11 +17,14 @@ string intToString(int a){
   return ss.str();
 }
 
-int read_fam_file(ifstream &fam_list, map<string,int> &vertexNameMap, vector<string> &vertexName){
+bool read_fam_file(string fam_file, int &m_nVertex, map<string,int> &vertexNameMap, vector<string> &vertexName){
+  ifstream fam_list( fam_file.c_str());
+  if (!fam_list) 
+    return false;
   stringstream ss;
   string line, iid, field1, field2, field3, field4;
-  int m_nVertex=0;  
   map<int, int> clstMap;
+  m_nVertex = 0;
   while ( getline( fam_list , line ) ) {
     ss.clear(); ss.str( line );
     ss >> field1 >> field2;
@@ -36,10 +39,12 @@ int read_fam_file(ifstream &fam_list, map<string,int> &vertexNameMap, vector<str
     vertexName.push_back(iid);
   }
   fam_list.close();
-  return m_nVertex;
+  return true;
 }
 
-void read_beagle_input(ifstream &input_seg, list<Pairmatch * > &matches, map<string,int> &vertexNameMap, CmdOpt cmdopt){
+bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<string,int> &vertexNameMap, CmdOpt cmdopt){
+  ifstream input_seg( input_file.c_str() );
+  if (!input_seg) return false;
   stringstream ss;
   Pairmatch *cur_match;
   string line, field1, field2, field3, field4;
@@ -70,5 +75,6 @@ void read_beagle_input(ifstream &input_seg, list<Pairmatch * > &matches, map<str
       matches.push_back( cur_match);
     }     
   input_seg.close();
+  return true;
 }
 

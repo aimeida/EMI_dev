@@ -3,7 +3,6 @@
 int seedn = 5;
 float freq_th = 0.8;
 int incre_cutoff = 0; // if use incre_cutoff, less predictions for missing edge 
-float WINDOW_SIZE_nfold = 2.; // at least that long to be printed (as missing pairs)
 float MIN_CLUSTER_DENSITY = 0.6f;
 float MIN_WEIGHT = 0.8; 
 int MIN_GRAPH_SIZE = 3;
@@ -107,19 +106,8 @@ int main( int argc , char * argv[] )
   of_log << "Minimum cluster density: "<< MIN_CLUSTER_DENSITY << endl;
   of_log << "Minimum haplotype size: " << MIN_GRAPH_SIZE << endl;
   of_log << "Output clusters in file: " << CLUSTER_FILE << ".clst.tmp"<< endl;
-  
-  // read fam files
-  map<string,int> vertexNameMap;
-  ifstream fam_list( FAM_FILE.c_str());      
-  if (!fam_list) {
-    cerr << "can not open input file, "<< INPUT_FILE << endl;
-    exit(0);
-  } 
-  int m_nVertex = read_fam_file(fam_list, vertexNameMap, vertexName);
-  of_log << m_nVertex/2 << " individual read from FAM file" << endl;
 
-   // read seg, equal weight
-
+  // parameter sets
   CmdOpt cmdopt;
   cmdopt.len_type = LEN_TYPE;
   cmdopt.winsize_type = WINSIZE_TYPE;
@@ -128,42 +116,49 @@ int main( int argc , char * argv[] )
   cmdopt.dist2Weight_a = (1 - MIN_WEIGHT)/(LEN_MAX_WEIGHT-LEN_MIN_WEIGHT); 
   cmdopt.dist2Weight_b = 1 - cmdopt.dist2Weight_a * LEN_MAX_WEIGHT;   
   cmdopt.iter_count = 1;
+  cmdopt.window_size_nfold = 2.; // at least that long to be printed (as missing pairs)
 
-  ifstream input_seg( INPUT_FILE.c_str() );
-  if (!input_seg){
+  float n_overhead = seedn * 0.05 + 4.5; // [5,10] <==> [10, 110]
+  cerr << "n_overhead " << n_overhead << endl;
+  
+  // read fam files
+  map<string,int> vertexNameMap;
+  int m_nVertex;
+  if (!read_fam_file(FAM_FILE, m_nVertex, vertexNameMap, vertexName)){
+    cerr << "can not open input file, "<< FAM_FILE << endl;
+    exit(0);
+  } 
+  of_log << m_nVertex/2 << " individual read from FAM file" << endl;
+
+  // read seg, equal weight
+  list<Pairmatch * > matches, active_matches;
+  if (!read_beagle_input(INPUT_FILE, matches, vertexNameMap, cmdopt)){ 
     cerr << "can not open input file, "<< INPUT_FILE << endl;
     exit(0);
   } 
-  list<Pairmatch * > matches, active_matches;
-  read_beagle_input(input_seg, matches, vertexNameMap, cmdopt);
   vertexNameMap.clear();
   //cerr << endl << "Done with loading IBD shared segments" << endl;  
 
   long start = myclock();
   list< Pairmatch * >::iterator pm_iter, am;
   EdgeInfo * p_edge;
-
   FastGraphCluster cluster(MIN_CLUSTER_DENSITY, MIN_GRAPH_SIZE, MIN_CLUSTER_DENSITY-0.1, m_nVertex);
+  //  if (WINSIZE_TYPE == "bp") {
+  //    cluster.continuous_empty_wins =  600000/WINDOW_SIZE; 
+  //  } else if (WINSIZE_TYPE == "cM"){
+  //    cluster.continuous_empty_wins =  0.6/WINDOW_SIZE ;  
+  //  }
+  cluster.continuous_empty_wins = cmdopt.window_size_nfold;
+  cerr << "continuous_empty_wins " << cluster.continuous_empty_wins << endl;  
   
-//  if (WINSIZE_TYPE == "bp") {
-//    cluster.continuous_empty_wins =  600000/WINDOW_SIZE; 
-//  } else if (WINSIZE_TYPE == "cM"){
-//    cluster.continuous_empty_wins =  0.6/WINDOW_SIZE ;  
-//  }
-  cluster.continuous_empty_wins = WINDOW_SIZE_nfold;
-  cerr << "continuous_empty_wins " << cluster.continuous_empty_wins << endl;
-  float n_overhead = seedn * 0.05 + 4.5; // [5,10] <==> [10, 110]
-  cerr << "n_overhead " << n_overhead << endl;
-
-
+  
   ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(cmdopt.iter_count)).c_str());
   float min_end;
   vector< pair <int, int > > delEdge;
   vector< pair <int, int > > addEdge;
-
   for (pm_iter = matches.begin(); pm_iter != matches.end() || !active_matches.empty(); ) {
     if (pm_iter != matches.end()) {
-      while ( cur_pos < (*pm_iter)->pcm_start + WINDOW_SIZE ) cur_pos += WINDOW_SIZE;
+      while ( cur_pos < (*pm_iter)->pcm_start + cmdopt.window_size ) cur_pos += cmdopt.window_size;
          
            for (am = active_matches.begin(); am != active_matches.end(); ) {
 	   if ( (*am)->pcm_end < cur_pos )
@@ -212,7 +207,7 @@ int main( int argc , char * argv[] )
        delEdge.clear();
        addEdge.clear();
        cluster.updateInput(active_matches);
-       cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE, WINDOW_SIZE_nfold, fout1); 
+       cluster.fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout1); 
        cur_pos_start = cur_pos;
      }
 
