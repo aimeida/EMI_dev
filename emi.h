@@ -19,8 +19,6 @@
 #include "Misc.h"
 using namespace std;
 
-class Pairmatch;
-
 class Cluster
 {
  public:

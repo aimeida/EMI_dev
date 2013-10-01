@@ -19,7 +19,6 @@ class DebugFunc
 {
  public:
   // static,  call func without an obj
-  static string intToString(int a);
   static void printNeighbor(int index, FastGraphCluster &f);
   static int numOfLeftPairs(FastGraphCluster &f); 
   static void mapToVec(map<int, int> &nodeCount, set< pair<int, int>, ComparePair > &sortCount);

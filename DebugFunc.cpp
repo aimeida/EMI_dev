@@ -68,13 +68,6 @@ int DebugFunc::countTransition(list<Pairmatch * > matches, float WINDOW_SIZE, fl
   return nwin;
 }
 
-string DebugFunc::intToString(int a)
-{
-  stringstream ss;
-  ss << a ;
-  return ss.str();
-}
-
 void DebugFunc::printVec(set<int> &m)
 {
   for (set <int>::iterator j=m.begin(); j!=m.end(); j++)  

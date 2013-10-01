@@ -146,7 +146,15 @@ int main( int argc , char * argv[] )
 
   float dist2Weight_a = (1 - MIN_WEIGHT)/(LEN_MAX_WEIGHT-LEN_MIN_WEIGHT);
   float dist2Weight_b = 1 - dist2Weight_a * LEN_MAX_WEIGHT;  
-  //cerr << dist2Weight_a << "##" << dist2Weight_b << endl;
+  
+  CmdOpt cmdopt;
+  cmdopt.len_type = LEN_TYPE;
+  cmdopt.winsize_type = WINSIZE_TYPE;
+  cmdopt.window_size = WINDOW_SIZE;
+  cmdopt.min_weight = MIN_WEIGHT;
+  cmdopt.dist2Weight_a = dist2Weight_a;
+  cmdopt.dist2Weight_b = dist2Weight_b;
+  cmdopt.iter_count = 1;
 
   ifstream input_seg( INPUT_FILE.c_str() );
   if (!input_seg){
@@ -162,17 +170,18 @@ int main( int argc , char * argv[] )
       ia = vertexNameMap[field1+" "+field2];
       ib = vertexNameMap[field3+" "+field4];
       
-      if (LEN_TYPE == "7th" ) {sw_w = logOR; }
-      else if (LEN_TYPE == "cM" ) {sw_w = cm_end - cm_start; }
-      else if (LEN_TYPE == "bp" ) {sw_w = pos2 - pos1;}
+      if (cmdopt.len_type == "7th" ) {sw_w = logOR; }
+      else if (cmdopt.len_type == "cM" ) {sw_w = cm_end - cm_start; }
+      else if (cmdopt.len_type == "bp" ) {sw_w = pos2 - pos1;}
 
-      if (WINSIZE_TYPE == "cM"){  
-	if ( cm_end - cm_start  < WINDOW_SIZE ) continue;		
-	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, dist2Weight_a, dist2Weight_b, MIN_WEIGHT), cm_start, cm_end);      
+      if (cmdopt.winsize_type == "cM"){  
+	if ( cm_end - cm_start  < cmdopt.window_size) continue;		
+	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, cmdopt.dist2Weight_a, cmdopt.dist2Weight_b, cmdopt.min_weight), cm_start, cm_end);      
       }
       else if (WINSIZE_TYPE == "bp") {
 	if ( pos2 - pos1 < WINDOW_SIZE ) continue;
-	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, dist2Weight_a, dist2Weight_b, MIN_WEIGHT), (float)pos1, (float) pos2);
+	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, cmdopt.dist2Weight_a, cmdopt.dist2Weight_b, cmdopt.min_weight), (float)pos1, (float) pos2);
+	
       }
       matches.push_back( cur_match);
     }     
@@ -201,9 +210,10 @@ int main( int argc , char * argv[] )
   float n_overhead = seedn * 0.05 + 4.5; // [5,10] <==> [10, 110]
   cerr << "n_overhead " << n_overhead << endl;
 
-   ofstream fout1((CLUSTER_FILE+".clst.tmp").c_str());
-   vector< pair <int, int > > delEdge;
-   vector< pair <int, int > > addEdge;
+  ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(cmdopt.iter_count)).c_str());
+
+  vector< pair <int, int > > delEdge;
+  vector< pair <int, int > > addEdge;
 
     for (pm_iter = matches.begin(); pm_iter != matches.end() || !active_matches.empty(); ) {
     if (pm_iter != matches.end()) {
@@ -257,8 +267,6 @@ int main( int argc , char * argv[] )
        addEdge.clear();
        cluster.updateInput(active_matches);
        cluster.fastClusterCore(seedn, n_overhead, freq_th, WINDOW_SIZE, WINDOW_SIZE_nfold, fout1); 
-       ///size_t n_used = DebugFunc::numOfLeftPairs(cluster);
-       ///cout << n_used/(float)active_matches.size() << endl;       
        cur_pos_start = cur_pos;
      }
 
