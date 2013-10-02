@@ -1,6 +1,10 @@
 
+
+this is OK vertion!
+NB::
+after this version, i will optimize with window INDependent version only, that is not variable of clstID
+
 ###
-this branch is window independent, to predict missing edges
 srand && addVar : two random resources
 ####################
 ### improvements 

@@ -194,7 +194,12 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
     deleteClst(cc->first);
 }
 
-void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge){
+void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, list< Pairmatch * > &active_matches)
+{
+  float *nw = neighborWeightCnt;
+  for (int i=0;i < m_nVertex;i++) 
+    *nw++ = 0;  
+
   // first delete than add
   for (vector< pair <int, int > >::iterator i = delEdge.begin(); i!=delEdge.end(); i++){
     delete m_neighbor[(*i).first][(*i).second];
@@ -207,21 +212,7 @@ void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< 
     m_neighbor[(i->first).first][(i->first).second] = p_edge;
     m_neighbor[(i->first).second][(i->first).first] = p_edge;
   }
-}
-
-void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
-{
-  float *nw = neighborWeightCnt;
-  FiboNode *mp2;
-  for (int i=0;i < m_nVertex;i++) {
-    mp2=m_pHeapNode2[i];         // use mp2 to reserve the space, alloc/dealloc expensive
-    mp2->key.wsum = UNEXPLORED;
-    mp2->key.esum = 0;
-    if (clstID[i] > -1){  // already clustered
-      m_pHeapNode[i] = NULL;
-    } else m_pHeapNode[i] = mp2;
-    *nw++ = 0;
-  }
+  // the following part originally comes from updateInput()
   list< Pairmatch * >::iterator am;  
   for (am = active_matches.begin(); am != active_matches.end(); am++) {
     if (clstID[(*am)->i1] > -1 || clstID[(*am)->i2] > -1) continue; 
@@ -232,9 +223,22 @@ void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
   for (int i=0;i<m_nVertex;i++){
     if( neighborWeightCnt[i] > maxWeightDegree ) maxWeightDegree = neighborWeightCnt[i];
   }
-  seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);
+  seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);  
 }
 
+void FastGraphCluster::updateMat()
+{
+  // update the rest component of class
+  FiboNode *mp2;
+  for (int i=0;i < m_nVertex;i++) {
+    mp2=m_pHeapNode2[i];         // use mp2 to reserve the space, alloc/dealloc expensive
+    mp2->key.wsum = UNEXPLORED;
+    mp2->key.esum = 0;
+    if (clstID[i] > -1){  // already clustered
+      m_pHeapNode[i] = NULL;
+    } else m_pHeapNode[i] = mp2;
+  }
+}
 
 void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1)
 {

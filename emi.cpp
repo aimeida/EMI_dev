@@ -138,18 +138,33 @@ int main( int argc , char * argv[] )
 
   EdgeInfo * p_edge;
   long start, end; 
-
+  list< Pairmatch * > matches,active_matches;  
+  list< Pairmatch * >::iterator pm_iter, am;    
+  
   for (int iter_count=1; iter_count <= cmdopt.iter_count; iter_count++) {
-  //for (int iter_count=1; iter_count <= 1; iter_count++) {
     float cur_pos = 0, cur_pos_start = 0;
     start = myclock();
-    list< Pairmatch * > matches, active_matches;
-    list< Pairmatch * >::iterator pm_iter, am;
+    
     if (!read_beagle_input(INPUT_FILE, matches, vertexNameMap, cmdopt)){ 
       cerr << "can not open input file, "<< INPUT_FILE << endl;
       exit(0);
     } 
-    
+
+    /// about 10% more missing edges are predicted in each window !!
+    if (iter_count > 1) {
+      cerr << "size:beagle " << matches.size() << endl;
+      string emi_file = (CLUSTER_FILE + ".clst.tmp" + intToString(iter_count-1)).c_str();
+      if (!read_emi_input(emi_file, matches, cmdopt.emi_weight)){
+	cerr << "can not open input file, "<< emi_file << endl;
+	exit(0);
+      }
+      cerr << "size:all " << matches.size() << endl;
+    }
+
+    cerr << "sort input ..." << matches.size() <<  endl;    
+    matches.sort(compare_pairs);
+    cerr << "sort done " << matches.size() <<  endl;
+
     FastGraphCluster* cluster = new FastGraphCluster(MIN_CLUSTER_DENSITY, MIN_GRAPH_SIZE, MIN_CLUSTER_DENSITY-0.1, m_nVertex, cmdopt.continuous_empty_wins);
     
     ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(iter_count)).c_str());
@@ -188,39 +203,22 @@ int main( int argc , char * argv[] )
         }
       }
 
-      cluster->updateNeighbor(delEdge, addEdge);
-      cluster->dissolve();
-      ////cluster->dissolve(delEdge, addEdge); 
+      cerr << "bug 1" << endl;
+      cluster->updateNeighbor(delEdge, addEdge, active_matches);
+      cluster->dissolve(); // delete result_clst and clstID
       delEdge.clear();
       addEdge.clear();
-
+      cerr << "bug 2" << endl;
+      cluster->updateMat();
       cluster->cur_pos = cur_pos;
-      if (iter_count == 1) {
-	 cluster->updateInput(active_matches);
-       } else {
-	 // add predicted missing matches here !
-	 list< Pairmatch * > emi_matches;
-	 string emi_file = (CLUSTER_FILE + ".clst.tmp" + intToString(iter_count-1)).c_str();
-	 if (!read_emi_input(emi_file, emi_matches, cur_pos, cmdopt.emi_weight)){
-	   cerr << "can not open input file, "<< emi_file << endl;
-	   exit(0);
-	 }
-	 /// about 10% missing predicted
-	 //cerr << "size " << active_matches.size() << " " << emi_matches.size() << endl;
-	 cluster->updateInput(active_matches);
-	 emi_matches.clear();
-       }
-
-       //cerr << "after " << active_matches.size() << endl;
-       cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout1); 
-       cur_pos_start = cur_pos;
-
+      cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout1); 
+      cur_pos_start = cur_pos;
     }
-  fout1.close();
-  end = myclock();  
-  delete cluster;
-  //cerr << "size " <<  matches.size() << " " << active_matches.size() << endl;
-  cerr << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
+    fout1.close();
+    end = myclock();  
+    delete cluster;
+    //cerr << "size " <<  matches.size() << " " << active_matches.size() << endl;
+    cerr << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
   }
   vertexNameMap.clear();
   
