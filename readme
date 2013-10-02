@@ -1,19 +1,17 @@
-this branch is window independent, to predict missing edges
 
+###
+this branch is window independent, to predict missing edges
 srand && addVar : two random resources
 ####################
 ### improvements 
+1. result_clst and clstID can both be removed for speedups!
+
+####################
+### obs
 1. no need for variation in building the core, if den = 0.8 (var included)
 2. 4370 out of 19760 has variation in extended core =~ 25%
-3. clst_size = 2 or 3, be careful !!!
-4. heuristic stop ==> save time ???
-  !!!!!!!!!! NB: need "increase < m_dLowerIncrease", otherwise, two many clusters not sure.
-####################
-todo
-0. delete *Cluster
-1. use count to predict missing IBD pairs 
-2. may have to delete heap or release memory
 
+####################
 Parts B and E show 
  power to detect IBD as a function of the underlying size of the true IBD segment.  The average 
  proportion of the segment that is detected is shown on the y-axis. ## no overlap is accounted in the average

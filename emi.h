@@ -27,13 +27,6 @@ class Cluster
   size_t p_start, p_end;
 };
 
-class EdgeInfo
-{
- public:
- EdgeInfo(float weight, size_t p0, size_t p1):weight(weight),p0(p0),p1(p1) {};
-  float weight;
-  size_t p0, p1;
-};
 class MisPair
 {
  public:

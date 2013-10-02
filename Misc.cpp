@@ -1,7 +1,9 @@
 // read pairwise data 
 #include "Misc.h"
 
-Pairmatch::Pairmatch(int i1, int i2, size_t p_start, size_t p_end, float weight, float pcm_start, float pcm_end):i1(i1),i2(i2),p_start(p_start),p_end(p_end),weight(weight),pcm_start(pcm_start), pcm_end(pcm_end){}
+Pairmatch::Pairmatch(int i1, int i2, float weight):i1(i1),i2(i2),weight(weight),pcm_start(-1), pcm_end(-1){} // -1 for unknow position
+
+Pairmatch::Pairmatch(int i1, int i2, float weight, float pcm_start, float pcm_end):i1(i1),i2(i2),weight(weight),pcm_start(pcm_start), pcm_end(pcm_end){}
 
 float dist2Weight(float dist, float a, float b, float min_weight){
   float t = a * dist + b;
@@ -65,11 +67,11 @@ bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<strin
 
       if (cmdopt.winsize_type == "cM"){  
 	if ( cm_end - cm_start  < cmdopt.window_size) continue;		
-	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, cmdopt.dist2Weight_a, cmdopt.dist2Weight_b, cmdopt.min_weight), cm_start, cm_end);      
+	cur_match = new Pairmatch(ia, ib, dist2Weight(sw_w, cmdopt.dist2Weight_a, cmdopt.dist2Weight_b, cmdopt.min_weight), cm_start, cm_end);      
       }
       else if (cmdopt.winsize_type == "bp") {
 	if ( pos2 - pos1 < cmdopt.window_size ) continue;
-	cur_match = new Pairmatch(ia, ib, pos1, pos2, dist2Weight(sw_w, cmdopt.dist2Weight_a, cmdopt.dist2Weight_b, cmdopt.min_weight), (float)pos1, (float) pos2);
+	cur_match = new Pairmatch(ia, ib, dist2Weight(sw_w, cmdopt.dist2Weight_a, cmdopt.dist2Weight_b, cmdopt.min_weight), (float)pos1, (float) pos2);
 	
       }
       matches.push_back( cur_match);
@@ -78,3 +80,22 @@ bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<strin
   return true;
 }
 
+bool read_emi_input(string input_file, list<Pairmatch * > &matches, float pos_end, float sw_w){
+  ifstream input_seg( input_file.c_str() );
+  if (!input_seg) return false;
+  stringstream ss;
+  Pairmatch *cur_match;
+  int ia, ib;
+  float p0, p1;
+  string line;
+  while( getline( input_seg , line ) ){
+    ss.clear(); ss.str( line );
+    ss >> ia >> ib >> p0 >> p1;
+    if ( p0 < pos_end - 0.001 && p1 >= pos_end) {
+      cur_match = new Pairmatch(ia, ib, sw_w);
+      matches.push_back(cur_match);
+    }
+  }
+  input_seg.close();
+  return true;
+}

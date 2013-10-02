@@ -113,9 +113,10 @@ int main( int argc , char * argv[] )
   cmdopt.min_weight = MIN_WEIGHT;
   cmdopt.dist2Weight_a = (1 - MIN_WEIGHT)/(LEN_MAX_WEIGHT-LEN_MIN_WEIGHT); 
   cmdopt.dist2Weight_b = 1 - cmdopt.dist2Weight_a * LEN_MAX_WEIGHT;   
-  cmdopt.iter_count = 5;
+  cmdopt.iter_count = 2;
   cmdopt.window_size_nfold = 2.; // at least that long to be printed (as missing pairs)
   cmdopt.continuous_empty_wins = (int)cmdopt.window_size_nfold;
+  cmdopt.emi_weight = MIN_WEIGHT;
   //  if (WINSIZE_TYPE == "bp") {
   //    cluster->continuous_empty_wins =  600000/WINDOW_SIZE; 
   //  } else if (WINSIZE_TYPE == "cM"){
@@ -138,13 +139,12 @@ int main( int argc , char * argv[] )
   EdgeInfo * p_edge;
   long start, end; 
 
-  //for (int iter_count=1; iter_count <= cmdopt.iter_count; iter_count++) {
-  for (int iter_count=1; iter_count <= 1; iter_count++) {
+  for (int iter_count=1; iter_count <= cmdopt.iter_count; iter_count++) {
+  //for (int iter_count=1; iter_count <= 1; iter_count++) {
     float cur_pos = 0, cur_pos_start = 0;
     start = myclock();
-    list<Pairmatch * > matches, active_matches;
+    list< Pairmatch * > matches, active_matches;
     list< Pairmatch * >::iterator pm_iter, am;
-
     if (!read_beagle_input(INPUT_FILE, matches, vertexNameMap, cmdopt)){ 
       cerr << "can not open input file, "<< INPUT_FILE << endl;
       exit(0);
@@ -162,25 +162,25 @@ int main( int argc , char * argv[] )
       for (am = active_matches.begin(); am != active_matches.end(); ) {
 	if ( (*am)->pcm_end < cur_pos ) {
 	  delete cluster->m_neighbor[(*am)->i1][(*am)->i2]; // do NOT delete twice !!
-	       cluster->m_neighbor[(*am)->i1].erase((*am)->i2);
-	       cluster->m_neighbor[(*am)->i2].erase((*am)->i1);	       
-	       delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
-	       delete *am;
-	       active_matches.erase( am++ );
-	     } else am++;
-	 }
-    while ( pm_iter!= matches.end() && (*pm_iter)->pcm_start <= (cur_pos - WINDOW_SIZE) ) {
+	  cluster->m_neighbor[(*am)->i1].erase((*am)->i2);
+	  cluster->m_neighbor[(*am)->i2].erase((*am)->i1);	       
+	  //delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
+	  delete *am;
+	  active_matches.erase( am++ );
+	} else am++;
+      }
+      while ( pm_iter!= matches.end() && (*pm_iter)->pcm_start <= (cur_pos - WINDOW_SIZE) ) {
         if ( (*pm_iter)->pcm_end >= cur_pos ) {
-	       active_matches.push_back( *pm_iter );
-	       addEdge.push_back(make_pair((*pm_iter)->i1,(*pm_iter)->i2));
-	       p_edge = new EdgeInfo((*pm_iter)->weight, (*pm_iter)->p_start, (*pm_iter)->p_end);
+	  active_matches.push_back( *pm_iter );
+	  //addEdge.push_back(make_pair((*pm_iter)->i1,(*pm_iter)->i2));
+	       p_edge = new EdgeInfo((*pm_iter)->weight);
 	       cluster->m_neighbor[(*pm_iter)->i1][(*pm_iter)->i2] = p_edge;
 	       cluster->m_neighbor[(*pm_iter)->i2][(*pm_iter)->i1] = p_edge;
-	     } else delete *pm_iter; 	  // match does not take up an entire window
-	   matches.erase( pm_iter++ );
-	 }
-    }
-    else {
+	} else delete *pm_iter; 	  // match does not take up an entire window
+	matches.erase( pm_iter++ );
+      }
+      }
+      else {
         min_end = 0;
         for (am = active_matches.begin(); am != active_matches.end(); am++ )
             if ( am == active_matches.begin() || (*am)->pcm_end < min_end ) min_end = (*am)->pcm_end;
@@ -190,31 +190,50 @@ int main( int argc , char * argv[] )
                 delete cluster->m_neighbor[(*am)->i1][(*am)->i2];
                 cluster->m_neighbor[(*am)->i1].erase((*am)->i2);
                 cluster->m_neighbor[(*am)->i2].erase((*am)->i1);
-                delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
+                //delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
                 delete *am;
                 active_matches.erase( am++ );
             } else am++;
         }
- }
+      }
+
        cluster->dissolve();
-       //cluster->dissolve(delEdge, addEdge); 
-       delEdge.clear();
-       addEdge.clear();
+
+       ////cluster->dissolve(delEdge, addEdge); 
+       ////delEdge.clear();
+       ////addEdge.clear();
+
        cluster->cur_pos = cur_pos;
-       cluster->updateInput(active_matches);
+       if (iter_count == 1) {
+	 cluster->updateInput(active_matches);
+       } else {
+	 // add predicted missing matches here !
+	 list< Pairmatch * > emi_matches;
+	 string emi_file = (CLUSTER_FILE + ".clst.tmp" + intToString(iter_count-1)).c_str();
+	 if (!read_emi_input(emi_file, emi_matches, cur_pos, cmdopt.emi_weight)){
+	   cerr << "can not open input file, "<< emi_file << endl;
+	   exit(0);
+	 }
+	 /// about 10% missing predicted
+	 //cerr << "size " << active_matches.size() << " " << emi_matches.size() << endl;
+	 cluster->updateInput(active_matches);
+	 emi_matches.clear();
+       }
+
+       //cerr << "after " << active_matches.size() << endl;
        cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout1); 
        cur_pos_start = cur_pos;
-     }
-  fout1.close();
-  end = myclock();
 
+    }
+  fout1.close();
+  end = myclock();  
   delete cluster;
   //cerr << "size " <<  matches.size() << " " << active_matches.size() << endl;
   cerr << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
   }
-
   vertexNameMap.clear();
-  //cluster(MIN_CLUSTER_DENSITY, MIN_GRAPH_SIZE, MIN_CLUSTER_DENSITY-0.1, m_nVertex);
+  
+
   of_log << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
   of_log.close();   
   

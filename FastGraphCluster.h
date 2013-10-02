@@ -42,13 +42,13 @@ class FastGraphCluster
   ~FastGraphCluster(void);
   friend class DebugFunc;
   void updateInput(list<Pairmatch * > &active_matches);
+  void updateInput(list<Pairmatch * > &active_matches, list<Pairmatch * > &emi_matches);
   void fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1);
   map <int, EdgeInfo* > *m_neighbor;
   map <int, Cluster* > result_clst;
   int clst_topindex;
   float cur_pos;
   int numOfLeftPairs(); // currect window number of IBD pairs that are not used 
-  void printAllClst(ofstream& fout, float window_size);
   void dissolve();
   void dissolve(vector< pair <int, int > > &delEdge, vector< pair <int, int > > &addEdge);
   

@@ -193,47 +193,33 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
     deleteClst(cc->first);
 }
 
-
-// print all Clusters in current window.
-void FastGraphCluster::printAllClst(ofstream& fout, float window_size)
-{
-  for (map <int, Cluster* >::iterator ci=result_clst.begin(); ci!=result_clst.end(); ci++)
-    {   
-      Cluster * cl = ci->second;
-      fout << ci->first << "\t" << cur_pos - window_size << "\t" << cur_pos << "\t" << cl->nodes.size() << "\t";
-      for (set <int>::iterator j=cl->nodes.begin(); j!=cl->nodes.end(); j++)
-	fout << vertexName[*j] << "\t";
-      fout << endl;
-    }
-}
-
 void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
 {
-  int i;
   float *nw = neighborWeightCnt;
   FiboNode *mp2;
-  for (i=0;i < m_nVertex;i++)
-    {
-      mp2=m_pHeapNode2[i];         // use mp2 to reserve the space, alloc/dealloc expensive
-      mp2->key.wsum = UNEXPLORED;
-      mp2->key.esum = 0;
-      if (clstID[i] > -1){  // already clustered
-	m_pHeapNode[i] = NULL;
-      } else m_pHeapNode[i] = mp2;
-      *nw++ = 0;
-    }
+  for (int i=0;i < m_nVertex;i++) {
+    mp2=m_pHeapNode2[i];         // use mp2 to reserve the space, alloc/dealloc expensive
+    mp2->key.wsum = UNEXPLORED;
+    mp2->key.esum = 0;
+    if (clstID[i] > -1){  // already clustered
+      m_pHeapNode[i] = NULL;
+    } else m_pHeapNode[i] = mp2;
+    *nw++ = 0;
+  }
   list< Pairmatch * >::iterator am;  
-  for (am = active_matches.begin(); am != active_matches.end(); am++)
-    {
-      if (clstID[(*am)->i1] > -1 || clstID[(*am)->i2] > -1) continue; 
-      neighborWeightCnt[(*am)->i1] += (*am)->weight;
-      neighborWeightCnt[(*am)->i2] += (*am)->weight;
-    }
+  for (am = active_matches.begin(); am != active_matches.end(); am++) {
+    if (clstID[(*am)->i1] > -1 || clstID[(*am)->i2] > -1) continue; 
+    neighborWeightCnt[(*am)->i1] += (*am)->weight;
+    neighborWeightCnt[(*am)->i2] += (*am)->weight;
+  }
   float maxWeightDegree = 0;
-  for (i=0;i<m_nVertex;i++){
+  for (int i=0;i<m_nVertex;i++){
     if( neighborWeightCnt[i] > maxWeightDegree ) maxWeightDegree = neighborWeightCnt[i];
   }
   seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);
+}
+
+void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches, list<Pairmatch * > &emi_matches){
 }
 
 void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1)
@@ -459,7 +445,7 @@ int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap
       }
     }
   m_neighbor[index][maxindex]->weight -= maxWeight;
-
+  
   if (result.size() >= m_nLowerSize){
     for (set<int>::iterator ni=result.begin();ni!=result.end();ni++)
       clstID[*ni] = clst_topindex;
