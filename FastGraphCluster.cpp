@@ -166,6 +166,7 @@ void FastGraphCluster::dissolve()
   result_clst.clear();
 }
 
+// the structure of addEdge has changed, need to rewrite this func.
 void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pair <int, int > > &addEdge)
 {
   map<int, int > changed_clst; 
@@ -191,6 +192,21 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
   if (changed_clst.empty()) return;
   for (map<int, int >::iterator cc = changed_clst.begin(); cc != changed_clst.end(); cc++)
     deleteClst(cc->first);
+}
+
+void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge){
+  // first delete than add
+  for (vector< pair <int, int > >::iterator i = delEdge.begin(); i!=delEdge.end(); i++){
+    delete m_neighbor[(*i).first][(*i).second];
+    m_neighbor[(*i).first].erase((*i).second);
+    m_neighbor[(*i).second].erase((*i).first);
+  }
+  EdgeInfo * p_edge;
+  for (map< pair <int, int >, float>::iterator i = addEdge.begin(); i!=addEdge.end(); i++){
+    p_edge = new EdgeInfo(i->second); 
+    m_neighbor[(i->first).first][(i->first).second] = p_edge;
+    m_neighbor[(i->first).second][(i->first).first] = p_edge;
+  }
 }
 
 void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)

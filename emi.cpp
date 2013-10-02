@@ -155,16 +155,13 @@ int main( int argc , char * argv[] )
     ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(iter_count)).c_str());
     float min_end;
     vector< pair <int, int > > delEdge;
-    vector< pair <int, int > > addEdge;
+    map< pair <int, int >, float > addEdge;
     for (pm_iter = matches.begin(); pm_iter != matches.end() || !active_matches.empty(); ) {
       if (pm_iter != matches.end()) {
       while ( cur_pos < (*pm_iter)->pcm_start + cmdopt.window_size ) cur_pos += cmdopt.window_size;      
       for (am = active_matches.begin(); am != active_matches.end(); ) {
 	if ( (*am)->pcm_end < cur_pos ) {
-	  delete cluster->m_neighbor[(*am)->i1][(*am)->i2]; // do NOT delete twice !!
-	  cluster->m_neighbor[(*am)->i1].erase((*am)->i2);
-	  cluster->m_neighbor[(*am)->i2].erase((*am)->i1);	       
-	  //delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
+	  delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
 	  delete *am;
 	  active_matches.erase( am++ );
 	} else am++;
@@ -172,10 +169,7 @@ int main( int argc , char * argv[] )
       while ( pm_iter!= matches.end() && (*pm_iter)->pcm_start <= (cur_pos - WINDOW_SIZE) ) {
         if ( (*pm_iter)->pcm_end >= cur_pos ) {
 	  active_matches.push_back( *pm_iter );
-	  //addEdge.push_back(make_pair((*pm_iter)->i1,(*pm_iter)->i2));
-	       p_edge = new EdgeInfo((*pm_iter)->weight);
-	       cluster->m_neighbor[(*pm_iter)->i1][(*pm_iter)->i2] = p_edge;
-	       cluster->m_neighbor[(*pm_iter)->i2][(*pm_iter)->i1] = p_edge;
+	  addEdge[make_pair((*pm_iter)->i1,(*pm_iter)->i2)] = (*pm_iter)->weight;
 	} else delete *pm_iter; 	  // match does not take up an entire window
 	matches.erase( pm_iter++ );
       }
@@ -187,24 +181,21 @@ int main( int argc , char * argv[] )
         while ( min_end >= cur_pos ) cur_pos += WINDOW_SIZE;
         for (am = active_matches.begin(); am != active_matches.end(); ) {
             if ( (*am)->pcm_end < cur_pos ) {
-                delete cluster->m_neighbor[(*am)->i1][(*am)->i2];
-                cluster->m_neighbor[(*am)->i1].erase((*am)->i2);
-                cluster->m_neighbor[(*am)->i2].erase((*am)->i1);
-                //delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
-                delete *am;
-                active_matches.erase( am++ );
+	      delEdge.push_back(make_pair((*am)->i1,(*am)->i2));
+	      delete *am;
+	      active_matches.erase( am++ );
             } else am++;
         }
       }
 
-       cluster->dissolve();
+      cluster->updateNeighbor(delEdge, addEdge);
+      cluster->dissolve();
+      ////cluster->dissolve(delEdge, addEdge); 
+      delEdge.clear();
+      addEdge.clear();
 
-       ////cluster->dissolve(delEdge, addEdge); 
-       ////delEdge.clear();
-       ////addEdge.clear();
-
-       cluster->cur_pos = cur_pos;
-       if (iter_count == 1) {
+      cluster->cur_pos = cur_pos;
+      if (iter_count == 1) {
 	 cluster->updateInput(active_matches);
        } else {
 	 // add predicted missing matches here !
