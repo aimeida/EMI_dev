@@ -199,15 +199,15 @@ void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< 
   float *nw = neighborWeightCnt;
   for (int i=0;i < m_nVertex;i++) *nw++ = 0;
 
-  // first delete than add
+  // first delete 
   for (vector< pair <int, int > >::iterator i = delEdge.begin(); i!=delEdge.end(); i++){
     delete m_neighbor[(*i).first][(*i).second];
     m_neighbor[(*i).first].erase((*i).second);
     m_neighbor[(*i).second].erase((*i).first);
   }
-  EdgeInfo * p_edge;
+  // then add
   for (map< pair <int, int >, float>::iterator i = addEdge.begin(); i!=addEdge.end(); i++){
-    p_edge = new EdgeInfo(i->second); 
+    EdgeInfo * p_edge = new EdgeInfo(i->second); 
     m_neighbor[(i->first).first][(i->first).second] = p_edge;
     m_neighbor[(i->first).second][(i->first).first] = p_edge;
   }
@@ -225,6 +225,7 @@ void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< 
   }
   seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);
 }
+
 
 void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
 {

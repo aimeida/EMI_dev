@@ -151,16 +151,20 @@ int main( int argc , char * argv[] )
     } 
     
     if (iter_count > 1) {
-      list< Pairmatch * > emi_matches;
+      cerr << "size:beagle " << matches.size() << endl;
       string emi_file = (CLUSTER_FILE + ".clst.tmp" + intToString(iter_count-1)).c_str();
-      if (!read_emi_input(emi_file, emi_matches, cur_pos, cmdopt.emi_weight)){
+      if (!read_emi_input(emi_file, matches, cmdopt.emi_weight)){
 	   cerr << "can not open input file, "<< emi_file << endl;
 	   exit(0);
       }
       /// about 10% missing predicted
-	emi_matches.clear();
+      cerr << "size:all " << matches.size() << endl;
     }
     
+    cerr << "sort input ..." << matches.size() <<  endl;    
+    matches.sort(compare_pairs);
+    cerr << "sort done " << matches.size() <<  endl;
+
     FastGraphCluster* cluster = new FastGraphCluster(MIN_CLUSTER_DENSITY, MIN_GRAPH_SIZE, MIN_CLUSTER_DENSITY-0.1, m_nVertex, cmdopt.continuous_empty_wins);
     
     ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(iter_count)).c_str());
@@ -206,7 +210,6 @@ int main( int argc , char * argv[] )
       cluster->cur_pos = cur_pos;
 
       cluster->updateInput(active_matches);
-
       cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout1); 
       cur_pos_start = cur_pos;
     }

@@ -9,7 +9,7 @@ using namespace std;
 
 class Pairmatch{
  public:
-  Pairmatch(int i1, int i2, float weight); // allowed 
+  Pairmatch(int i1, int i2, float weight); // used in read_emi_input_byWin()
   Pairmatch(int i1, int i2, float weight, float pcm_start, float pcm_end);
   int i1, i2;
   //size_t p_start, p_end;
@@ -36,5 +36,10 @@ class CmdOpt{
 float dist2Weight(float dist, float a, float b, float min_weight);
 string intToString(int a);
 bool read_fam_file(string fam_file, int &m_nVertex, map<string,int> &vertexNameMap, vector<string> &vertexName);
+bool compare_pairs(Pairmatch *pa, Pairmatch *pb);
 bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<string,int> &vertexNameMap, CmdOpt &cmdopt);
-bool read_emi_input(string input_file, list<Pairmatch * > &matches, float pos_end, float sw_w);
+
+bool read_emi_input_byWin(string input_file, list<Pairmatch * > &matches, float pos_end, float sw_w);
+bool read_emi_input(string input_file, list<Pairmatch * > &matches, float sw_w);
+
+

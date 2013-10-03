@@ -44,6 +44,14 @@ bool read_fam_file(string fam_file, int &m_nVertex, map<string,int> &vertexNameM
   return true;
 }
 
+bool compare_pairs(Pairmatch *pa, Pairmatch *pb){
+  if ( pa->pcm_start < pb->pcm_start) return true;
+  else if ( pa->pcm_start > pb->pcm_start) return false;
+  else if ( pa->pcm_end < pb->pcm_end) return true;
+  else if ( pa->pcm_end > pb->pcm_end) return false;
+  else return pa < pb;
+}
+
 bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<string,int> &vertexNameMap, CmdOpt &cmdopt){
   ifstream input_seg( input_file.c_str() );
   if (!input_seg) return false;
@@ -59,8 +67,9 @@ bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<strin
       ss >> field1 >> field2 >> field3 >> field4 >> pos1 >> pos2 >> logOR >> cm_start >> cm_end;
 
       ia = vertexNameMap[field1+" "+field2];
-      ib = vertexNameMap[field3+" "+field4];
-      
+      ib = vertexNameMap[field3+" "+field4];      
+      if (ia > ib) swap(ia, ib); // such that it's ordered
+
       if (cmdopt.len_type == "7th" ) {sw_w = logOR; }
       else if (cmdopt.len_type == "cM" ) {sw_w = cm_end - cm_start; }
       else if (cmdopt.len_type == "bp" ) {sw_w = pos2 - pos1;}
@@ -80,7 +89,7 @@ bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<strin
   return true;
 }
 
-bool read_emi_input(string input_file, list<Pairmatch * > &matches, float pos_end, float sw_w){
+bool read_emi_input_byWin(string input_file, list<Pairmatch * > &matches, float pos_end, float sw_w){
   ifstream input_seg( input_file.c_str() );
   if (!input_seg) return false;
   stringstream ss;
@@ -91,10 +100,30 @@ bool read_emi_input(string input_file, list<Pairmatch * > &matches, float pos_en
   while( getline( input_seg , line ) ){
     ss.clear(); ss.str( line );
     ss >> ia >> ib >> p0 >> p1;
+    if (ia > ib) swap(ia, ib); // such that it's ordered
     if ( p0 < pos_end - 0.001 && p1 >= pos_end) {
       cur_match = new Pairmatch(ia, ib, sw_w);
       matches.push_back(cur_match);
     }
+  }
+  input_seg.close();
+  return true;
+}
+
+bool read_emi_input(string input_file, list<Pairmatch * > &matches, float sw_w){
+  ifstream input_seg( input_file.c_str() );
+  if (!input_seg) return false;
+  stringstream ss;
+  Pairmatch *cur_match;
+  int ia, ib;
+  float p0, p1;
+  string line;
+  while( getline( input_seg , line ) ){
+    ss.clear(); ss.str( line );
+    ss >> ia >> ib >> p0 >> p1;
+    if (ia > ib) swap(ia, ib); // such that it's ordered
+    cur_match = new Pairmatch(ia, ib, sw_w, p0, p1);
+    matches.push_back(cur_match);
   }
   input_seg.close();
   return true;
