@@ -194,7 +194,11 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
     deleteClst(cc->first);
 }
 
-void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge){
+void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, list<Pairmatch * > &active_matches){
+  // init neighborWeightCnt to 0
+  float *nw = neighborWeightCnt;
+  for (int i=0;i < m_nVertex;i++) *nw++ = 0;
+
   // first delete than add
   for (vector< pair <int, int > >::iterator i = delEdge.begin(); i!=delEdge.end(); i++){
     delete m_neighbor[(*i).first][(*i).second];
@@ -207,24 +211,11 @@ void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< 
     m_neighbor[(i->first).first][(i->first).second] = p_edge;
     m_neighbor[(i->first).second][(i->first).first] = p_edge;
   }
-}
-
-void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
-{
-  float *nw = neighborWeightCnt;
-  FiboNode *mp2;
-  for (int i=0;i < m_nVertex;i++) {
-    mp2=m_pHeapNode2[i];         // use mp2 to reserve the space, alloc/dealloc expensive
-    mp2->key.wsum = UNEXPLORED;
-    mp2->key.esum = 0;
-    if (clstID[i] > -1){  // already clustered
-      m_pHeapNode[i] = NULL;
-    } else m_pHeapNode[i] = mp2;
-    *nw++ = 0;
-  }
-  list< Pairmatch * >::iterator am;  
-  for (am = active_matches.begin(); am != active_matches.end(); am++) {
-    if (clstID[(*am)->i1] > -1 || clstID[(*am)->i2] > -1) continue; 
+  
+  // update neighborWeightCnt
+  for (list< Pairmatch * >::iterator am = active_matches.begin(); am != active_matches.end(); am++) {
+    ///// to use this step, move it after dissolve(), eg: in update(), otherwise segfault!!!
+    ////if (clstID[(*am)->i1] > -1 || clstID[(*am)->i2] > -1) continue; 
     neighborWeightCnt[(*am)->i1] += (*am)->weight;
     neighborWeightCnt[(*am)->i2] += (*am)->weight;
   }
@@ -235,19 +226,35 @@ void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
   seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);
 }
 
+void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
+{
+  FiboNode *mp2;
+  for (int i=0;i < m_nVertex;i++) {
+    mp2=m_pHeapNode2[i];         // use mp2 to reserve the space, alloc/dealloc expensive
+    mp2->key.wsum = UNEXPLORED;
+    mp2->key.esum = 0;
+    if (clstID[i] > -1){  // already clustered
+      m_pHeapNode[i] = NULL;
+    } else m_pHeapNode[i] = mp2;    
+  }
+
+  /**
+    originally see the code in section "update neighborWeightCnt"
+  */
+
+}
 
 void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1)
 {
   set<int> result, changed;
   int freq_thn = (int) seedn * (freq_th-FREQ_ERROR);  // allow more segments to be included
   size_t n_clst_all = 0, n_clst_ext = 0;
-  //cerr << "clst size " <<  result_clst.size() << endl;  // should be 0
+  ///cerr << "clst size " <<  result_clst.size() << endl;  // should be 0
   while (!seedArray->empty() && seedArray->top >= m_nLowerSize-1) {
     FibonacciHeap heap;	// local expanding heap
-    int i = seedArray->getMax();   
+    int i = seedArray->getMax();
     buildCore(i, result, heap, changed); // update clst_topindex, added to result_clst
     // make sure  with\out extension, core size stays the same.
-    // cerr << cur_pos << "\t" << result.size() << endl;
     if (heap.m_nNode > 0){ // there are nodes left after the core
       map< set <int>, int > core_ext;  // count number of times it appears
       set<int> surround;
@@ -352,7 +359,6 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
     pairCount.clear();
    }
     }
-      
     heap.current_node_id.clear();
     result.clear();
     for ( set<int>::iterator iter = changed.begin() ; iter != changed.end() ; iter++ ) {
@@ -405,14 +411,19 @@ int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap
 	maxWeight = (float)w;  // it was set to be very large 
       }
     }
+
+
   if (maxindex < 0) {   
     seedArray->remove(index,neighborWeightCnt[index]);
     return 0;
   }
   
+
   // for the expanding procedure, definitely select this edge first
   m_neighbor[index][maxindex]->weight += maxWeight;
   
+    
+    
   while (!heap.empty())
     {
       ptr = heap.extractMin();
@@ -422,7 +433,7 @@ int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap
       nVertex ++;
         
       if (nVertex > 1) {
-  	if ( 2.0*tEdge != (nVertex*(nVertex-1))) {  // fully connected cluster
+  	   if ( 2.0*tEdge != (nVertex*(nVertex-1))) {  // fully connected cluster
 	  nVertex--;
 	  tEdge -= w3;
 	  break;	
@@ -433,10 +444,14 @@ int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap
       seedArray->remove(imin,neighborWeightCnt[imin]);
       result.insert(imin);	// write back result
       
+        
+        
       for (imap = m_neighbor[imin].begin(); imap!=m_neighbor[imin].end(); imap++){
 	j = imap->first;
         w = (imap->second)->weight;
         ptr = m_pHeapNode[j];
+          
+          
 	if (ptr==NULL) continue;
 	if (ptr->key.wsum == UNEXPLORED){
 	  ptr->key.wsum = w;
@@ -447,17 +462,28 @@ int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap
 	  heap.decrease(ptr,HeapNode( ptr->key.wsum+w,j,ptr->key.esum+1));
 	}
           
-	oldWeight = neighborWeightCnt[j];        
+
+	oldWeight = neighborWeightCnt[j];
+          
 	if ( ( nVertex == 1 ) && (j == maxindex)) {
 	  seedArray->decrease(j,oldWeight,oldWeight + maxWeight - w);
 	  neighborWeightCnt[j] -= (w-maxWeight);
 	}else {
+	  
+	  //if (oldWeight-w < -0.01) cerr << "oldWeight-w " << oldWeight - w <<  endl;
+	  
 	  seedArray->decrease(j,oldWeight,oldWeight - w);
+	  //cerr << "bugx2 "<< seedArray->empty()<< endl;
 	  neighborWeightCnt[j] -= w;
 	}
+        
 	changed.insert(j);	
       }
+        
+       
     }
+    
+    
   m_neighbor[index][maxindex]->weight -= maxWeight;
   
   if (result.size() >= m_nLowerSize){

@@ -150,6 +150,17 @@ int main( int argc , char * argv[] )
       exit(0);
     } 
     
+    if (iter_count > 1) {
+      list< Pairmatch * > emi_matches;
+      string emi_file = (CLUSTER_FILE + ".clst.tmp" + intToString(iter_count-1)).c_str();
+      if (!read_emi_input(emi_file, emi_matches, cur_pos, cmdopt.emi_weight)){
+	   cerr << "can not open input file, "<< emi_file << endl;
+	   exit(0);
+      }
+      /// about 10% missing predicted
+	emi_matches.clear();
+    }
+    
     FastGraphCluster* cluster = new FastGraphCluster(MIN_CLUSTER_DENSITY, MIN_GRAPH_SIZE, MIN_CLUSTER_DENSITY-0.1, m_nVertex, cmdopt.continuous_empty_wins);
     
     ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(iter_count)).c_str());
@@ -187,34 +198,17 @@ int main( int argc , char * argv[] )
             } else am++;
         }
       }
-
-      cluster->updateNeighbor(delEdge, addEdge);
+      
+      cluster->updateNeighbor(delEdge, addEdge, active_matches);
       cluster->dissolve();
-      ////cluster->dissolve(delEdge, addEdge); 
       delEdge.clear();
       addEdge.clear();
-
       cluster->cur_pos = cur_pos;
-      if (iter_count == 1) {
-	 cluster->updateInput(active_matches);
-       } else {
-	 // add predicted missing matches here !
-	 list< Pairmatch * > emi_matches;
-	 string emi_file = (CLUSTER_FILE + ".clst.tmp" + intToString(iter_count-1)).c_str();
-	 if (!read_emi_input(emi_file, emi_matches, cur_pos, cmdopt.emi_weight)){
-	   cerr << "can not open input file, "<< emi_file << endl;
-	   exit(0);
-	 }
-	 /// about 10% missing predicted
-	 //cerr << "size " << active_matches.size() << " " << emi_matches.size() << endl;
-	 cluster->updateInput(active_matches);
-	 emi_matches.clear();
-       }
 
-       //cerr << "after " << active_matches.size() << endl;
-       cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout1); 
-       cur_pos_start = cur_pos;
+      cluster->updateInput(active_matches);
 
+      cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout1); 
+      cur_pos_start = cur_pos;
     }
   fout1.close();
   end = myclock();  
