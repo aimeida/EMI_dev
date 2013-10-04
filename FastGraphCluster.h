@@ -41,11 +41,11 @@ class FastGraphCluster
   FastGraphCluster(float density, int lowersize,float lowerincrease, int m_nVertex, int cew);
   ~FastGraphCluster(void);
   friend class DebugFunc;
-  void updateNeighbor(vector< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, list<Pairmatch * > &active_matches);
+  void updateNeighbor(set< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, list<Pairmatch * > &active_matches, ofstream& fout2);
   
   void updateInput(list<Pairmatch * > &active_matches);
-  void fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1);
-  map <int, EdgeInfo* > *m_neighbor;
+  void fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1, ofstream& fout2);
+  map <int, EdgeInfo* > *m_neighbor; ///m_neighbor = new map<int, EdgeInfo* >[m_nVertex]; 
   map <int, Cluster* > result_clst;
   int clst_topindex;
   float cur_pos;
@@ -68,7 +68,7 @@ class FastGraphCluster
 	int continuous_empty_wins; // max continuous_empty_win allowed 
 	map <pair<int, int>, MisPair* > misPairs;
 	int buildCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed);
-	void extendCore(set<int> &surround,set<int> &core_id, set<int> &node_id, int dn);
+	void extendCore(set<int> &surround,set<int> &core_id, set<int> &node_id, int dn, ofstream& fout2);
 	float getWeight(float edgeweight,float vertexweight, float seedW=NULL);
 	void deleteClst(int cid, Cluster * i_clst=NULL);
 	void initMisFlag();  // set flag = 0

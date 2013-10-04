@@ -194,13 +194,15 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
     deleteClst(cc->first);
 }
 
-void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, list<Pairmatch * > &active_matches){
+void FastGraphCluster::updateNeighbor(set< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, list<Pairmatch * > &active_matches, ofstream& fout2){
   // init neighborWeightCnt to 0
   float *nw = neighborWeightCnt;
   for (int i=0;i < m_nVertex;i++) *nw++ = 0;
+    
+    //cerr << cur_pos << " " <<(int)addEdge.size() - (int) delEdge.size() <<  endl;
 
   // first delete 
-  for (vector< pair <int, int > >::iterator i = delEdge.begin(); i!=delEdge.end(); i++){
+  for (set< pair <int, int > >::iterator i = delEdge.begin(); i!=delEdge.end(); i++){
     delete m_neighbor[(*i).first][(*i).second];
     m_neighbor[(*i).first].erase((*i).second);
     m_neighbor[(*i).second].erase((*i).first);
@@ -212,13 +214,36 @@ void FastGraphCluster::updateNeighbor(vector< pair <int, int > > &delEdge, map< 
     m_neighbor[(i->first).second][(i->first).first] = p_edge;
   }
   
-  // update neighborWeightCnt
+  // update neighborWeightCnt, time consuming
+  map<pair<int, int>, float > active_matches_uniq;
+  map<pair<int, int>, float >::iterator ami;
+  pair <int, int> akey;
+    int n1=0, n2=0;
   for (list< Pairmatch * >::iterator am = active_matches.begin(); am != active_matches.end(); am++) {
-    ///// to use this step, move it after dissolve(), eg: in update(), otherwise segfault!!!
-    ////if (clstID[(*am)->i1] > -1 || clstID[(*am)->i2] > -1) continue; 
-    neighborWeightCnt[(*am)->i1] += (*am)->weight;
-    neighborWeightCnt[(*am)->i2] += (*am)->weight;
+      akey=make_pair((*am)->i1, (*am)->i2);
+      ami = active_matches_uniq.find(akey);
+      //n1 += 1;
+      if (ami==active_matches_uniq.end()) {
+          active_matches_uniq[akey] = (*am)->weight;
+        //n2 += 1;
+      } else if(ami->second < (*am)->weight){
+          ami->second = (*am)->weight;
+      }
+
   }
+  cerr << delEdge.size() << " " << addEdge.size() << " " << active_matches.size() << " " << active_matches_uniq.size() << endl;
+    
+    for (ami = active_matches_uniq.begin(); ami!=active_matches_uniq.end();ami++){
+        akey = make_pair(ami->first.second, ami->first.first);
+        /*
+        if (active_matches_uniq.find(akey)!=active_matches_uniq.end())
+            cerr << "errrrrrr " << ami->first.first << " " << ami->first.second << endl;
+        if (ami->second > 1) cerr << "bug2 " << ami->second << endl;
+         */
+       neighborWeightCnt[ami->first.first] += ami->second;
+       neighborWeightCnt[ami->first.second] += ami->second;
+    }
+    
   float maxWeightDegree = 0;
   for (int i=0;i<m_nVertex;i++){
     if( neighborWeightCnt[i] > maxWeightDegree ) maxWeightDegree = neighborWeightCnt[i];
@@ -240,23 +265,38 @@ void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
   }
 
   /**
-    originally see the code in section "update neighborWeightCnt"
+    moved to updateNeighbor(),  "update neighborWeightCnt"
+   // update neighborWeightCnt
+   for (list< Pairmatch * >::iterator am = active_matches.begin(); am != active_matches.end(); am++) {
+   ///// this step should be used after dissolve(), eg: in update(), otherwise segfault!!!
+   ////if (clstID[(*am)->i1] > -1 || clstID[(*am)->i2] > -1) continue;
+   neighborWeightCnt[(*am)->i1] += (*am)->weight;
+   neighborWeightCnt[(*am)->i2] += (*am)->weight;
+   }
+   float maxWeightDegree = 0;
+   for (int i=0;i<m_nVertex;i++){
+   if( neighborWeightCnt[i] > maxWeightDegree ) maxWeightDegree = neighborWeightCnt[i];
+   }
+   seedArray = new DegreeArray(neighborWeightCnt,m_nVertex,maxWeightDegree);
   */
 
 }
 
-void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1)
+void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1, ofstream& fout2)
 {
   set<int> result, changed;
   int freq_thn = (int) seedn * (freq_th-FREQ_ERROR);  // allow more segments to be included
   size_t n_clst_all = 0, n_clst_ext = 0;
-  ///cerr << "clst size " <<  result_clst.size() << endl;  // should be 0
+  //cerr << "clst size " <<  result_clst.size() << " " << cur_pos <<  endl;  // should be 0
   while (!seedArray->empty() && seedArray->top >= m_nLowerSize-1) {
     FibonacciHeap heap;	// local expanding heap
+      
     int i = seedArray->getMax();
+    
     buildCore(i, result, heap, changed); // update clst_topindex, added to result_clst
     // make sure  with\out extension, core size stays the same.
-    if (heap.m_nNode > 0){ // there are nodes left after the core
+      
+      if (heap.m_nNode > 0){ // there are nodes left after the core
       map< set <int>, int > core_ext;  // count number of times it appears
       set<int> surround;
 #ifdef DEBUGMODE
@@ -274,8 +314,8 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
 	    } 
 	    break;
           } // at least 50% calculations can be saved
-    
-          extendCore(surround, result, heap.current_node_id, dn);
+
+          extendCore(surround, result, heap.current_node_id, dn, fout2);
           if (!surround.empty())
               addKey(core_ext, surround);
           surround.clear();
@@ -360,6 +400,7 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
     pairCount.clear();
    }
     }
+      
     heap.current_node_id.clear();
     result.clear();
     for ( set<int>::iterator iter = changed.begin() ; iter != changed.end() ; iter++ ) {
@@ -370,9 +411,10 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
       }
     }
     changed.clear();
+      
     // fix me, when to delete heap ??
   }
-  
+    
   if (!seedArray->empty())
     delete seedArray;
   printMissing(window_size, window_size_nfold, freq_th, fout1);
@@ -399,13 +441,17 @@ int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap
   ptr->key.wsum = 0;
   ptr->key.esum = 0;
   heap.insert(ptr);
+    
   int maxindex = -1; // default 0 may cause problem
   float maxWeight = 0;
-  map<int, EdgeInfo*>::iterator imap;    
+    
+  map<int, EdgeInfo*>::iterator imap;
+  int flag = 0;
   for (imap = m_neighbor[index].begin(); imap!=m_neighbor[index].end(); imap++)
     {
       j = imap->first;
       if (m_pHeapNode[j] == NULL) continue;  // already in other clusters
+        flag++ ;
       w = getWeight((imap->second)->weight,neighborWeightCnt[j]);
       if (w > maxWeight ) {
 	maxindex = j;
@@ -413,17 +459,19 @@ int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap
       }
     }
 
-
+  //  obs: seedArray->top <= flag, because seedArray built on weight, not count
+    if (seedArray->top > flag)
+      cerr << "bug1  " << seedArray->top << " " << flag << endl;
+    
   if (maxindex < 0) {   
     seedArray->remove(index,neighborWeightCnt[index]);
+    cerr << "check here ! " << seedArray->top << " " <<  m_neighbor[index].size()  << " " << flag <<  endl;
     return 0;
   }
   
-
+    
   // for the expanding procedure, definitely select this edge first
   m_neighbor[index][maxindex]->weight += maxWeight;
-  
-    
     
   while (!heap.empty())
     {
@@ -499,21 +547,22 @@ int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap
 float addVar(float v0)
 {
   float r = 1-(float)(rand()%100)*0.002; // [0,99]==>[0.8,1]
-  //return v0 * 0.9; // debug
   if (v0==0) {
     cerr << "can't be 0 " << endl;
     exit(0);
   }
+  //return v0 * 0.9; // debug
   return v0 * r;
 }
 
 // build local heap from initial nodes, with random variance added
 // core nodes in in "core_id", and neighbors of core nodes are "node_id"
-void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int> &node_id, int dn)
+void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int> &node_id, int dn, ofstream& fout2)
 {
   FibonacciHeap heapExt; // Extended heap, start with start_id
   FiboNode *ptr; 
   set<int> current_heap;
+   // fout2 << "begin " << core_id.size() << " " << node_id.size() << endl;
   for (set<int>::iterator i = node_id.begin();i!=node_id.end();i++){
     ptr = m_pHeapNode[*i];
     //// fixme: use esum for now, change to wsum later if I'm not lazy
@@ -521,6 +570,7 @@ void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int
     heapExt.insert(ptr);
     current_heap.insert(*i);
   }
+    
   int imin, es, tEdge, nVertex;
   nVertex = core_id.size();
   tEdge = nVertex * (nVertex-1)/2;
