@@ -41,9 +41,9 @@ class FastGraphCluster
   FastGraphCluster(float density, int lowersize,float lowerincrease, int m_nVertex, int cew);
   ~FastGraphCluster(void);
   friend class DebugFunc;
-  void updateNeighbor(set< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, list<Pairmatch * > &active_matches, ofstream& fout2);
+  void updateNeighbor(set< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, map<pair<int, int>, float > &uniq_matches, ofstream& fout2);
   
-  void updateInput(list<Pairmatch * > &active_matches);
+  void updateInput();
   void fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1, ofstream& fout2);
   map <int, EdgeInfo* > *m_neighbor; ///m_neighbor = new map<int, EdgeInfo* >[m_nVertex]; 
   map <int, Cluster* > result_clst;

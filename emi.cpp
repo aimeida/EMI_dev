@@ -144,6 +144,8 @@ int main( int argc , char * argv[] )
     float cur_pos = 0, cur_pos_start = 0;
     start = myclock();
     list< Pairmatch * > matches, active_matches;
+    map<pair<int, int>, float > uniq_matches;
+
     list< Pairmatch * >::iterator pm_iter, am;
     if (!read_beagle_input(INPUT_FILE, matches, vertexNameMap, cmdopt)){ 
       cerr << "can not open input file, "<< INPUT_FILE << endl;
@@ -170,40 +172,32 @@ int main( int argc , char * argv[] )
     ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(iter_count)).c_str());
     ofstream fout2((CLUSTER_FILE + ".info.tmp" + intToString(iter_count)).c_str());
     float min_end;
-    set< pair <int, int > > delEdge;
+    set< pair <int, int > > delEdge; 
     set< pair <int, int > >::iterator de;
     map< pair <int, int >, float > addEdge;
     map< pair <int, int >, float >::iterator ae;
     pair <int, int > akey;
-    int nad=0, naa=0;
-    
+
     for (pm_iter = matches.begin(); pm_iter != matches.end() || !active_matches.empty(); ) {
       if (pm_iter != matches.end()) {
       while ( cur_pos < (*pm_iter)->pcm_start + cmdopt.window_size ) cur_pos += cmdopt.window_size;      
       for (am = active_matches.begin(); am != active_matches.end(); ) {
 	if ( (*am)->pcm_end < cur_pos ) {
 	  // active_matches can have more copies of akey, because p_start and p_end diff !!!
-	  akey = make_pair((*am)->i1,(*am)->i2);
-	  if ((de = delEdge.find(akey)) == delEdge.end()){
-	    delEdge.insert(akey); 
-	  }
+	  delEdge.insert(make_pair((*am)->i1,(*am)->i2)); 
 	  delete *am;
 	  active_matches.erase( am++ );
-	  nad++;
 	} else am++;
       }
       while ( pm_iter!= matches.end() && (*pm_iter)->pcm_start <= (cur_pos - WINDOW_SIZE) ) {
         if ( (*pm_iter)->pcm_end >= cur_pos ) {
-
 	  active_matches.push_back( *pm_iter );  
-	  naa++;
 	  akey = make_pair((*pm_iter)->i1,(*pm_iter)->i2);
 	  if ((ae = addEdge.find(akey)) == addEdge.end()){
 	    addEdge[akey] = (*pm_iter)->weight;
 	  } else if (ae->second < (*pm_iter)->weight) {
 	    ae->second = (*pm_iter)->weight;
 	  }
-
 	} else delete *pm_iter; 	  // match does not take up an entire window
 	matches.erase( pm_iter++ );
       }
@@ -222,18 +216,13 @@ int main( int argc , char * argv[] )
         }
       }
 
-      if ( iter_count > 1)
-	cerr << "######"  << cur_pos << " " <<  nad <<" " <<  naa << " "<< active_matches.size() << endl;
-      
-      nad=0; naa=0;
-      cluster->updateNeighbor(delEdge, addEdge, active_matches, fout2);
-
+      cluster->updateNeighbor(delEdge, addEdge, uniq_matches, fout2);
       cluster->dissolve();
       delEdge.clear();
       addEdge.clear();
       cluster->cur_pos = cur_pos;
       
-      cluster->updateInput(active_matches);
+      cluster->updateInput();
       cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout1, fout2); 
       cur_pos_start = cur_pos;
     }
@@ -241,7 +230,6 @@ int main( int argc , char * argv[] )
   fout2.close();
   end = myclock();  
   delete cluster;
-  //cerr << "size " <<  matches.size() << " " << active_matches.size() << endl;
   cerr << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;
   }
   vertexNameMap.clear();

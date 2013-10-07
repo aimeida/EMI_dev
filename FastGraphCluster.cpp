@@ -194,56 +194,39 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
     deleteClst(cc->first);
 }
 
-void FastGraphCluster::updateNeighbor(set< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, list<Pairmatch * > &active_matches, ofstream& fout2){
+void FastGraphCluster::updateNeighbor(set< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, map<pair<int, int>, float > &uniq_matches, ofstream& fout2){
   // init neighborWeightCnt to 0
   float *nw = neighborWeightCnt;
   for (int i=0;i < m_nVertex;i++) *nw++ = 0;
-    
-    //cerr << cur_pos << " " <<(int)addEdge.size() - (int) delEdge.size() <<  endl;
 
   // first delete 
   for (set< pair <int, int > >::iterator i = delEdge.begin(); i!=delEdge.end(); i++){
-    delete m_neighbor[(*i).first][(*i).second];
-    m_neighbor[(*i).first].erase((*i).second);
-    m_neighbor[(*i).second].erase((*i).first);
+    map < pair <int, int >, float >::iterator ae=addEdge.find(*i);
+    if ( ae == addEdge.end()){
+      delete m_neighbor[(*i).first][(*i).second];
+      m_neighbor[(*i).first].erase((*i).second);
+      m_neighbor[(*i).second].erase((*i).first);
+      uniq_matches.erase(*i);
+    } else { 
+      addEdge.erase(ae);
+    }
   }
   // then add
   for (map< pair <int, int >, float>::iterator i = addEdge.begin(); i!=addEdge.end(); i++){
     EdgeInfo * p_edge = new EdgeInfo(i->second); 
     m_neighbor[(i->first).first][(i->first).second] = p_edge;
     m_neighbor[(i->first).second][(i->first).first] = p_edge;
+    uniq_matches[i->first] = i->second;
+  }
+  cerr << cur_pos << " " << delEdge.size() << " " << addEdge.size() << " " << uniq_matches.size() << endl;  
+  
+  // update neighborWeightCnt
+  for (map<pair<int, int>, float >::iterator ami = uniq_matches.begin(); ami!=uniq_matches.end();ami++){
+    //if (ami->second > 1) cerr << "bug2 " << ami->second << endl;
+    neighborWeightCnt[ami->first.first] += ami->second;
+    neighborWeightCnt[ami->first.second] += ami->second;
   }
   
-  // update neighborWeightCnt, time consuming
-  map<pair<int, int>, float > active_matches_uniq;
-  map<pair<int, int>, float >::iterator ami;
-  pair <int, int> akey;
-    int n1=0, n2=0;
-  for (list< Pairmatch * >::iterator am = active_matches.begin(); am != active_matches.end(); am++) {
-      akey=make_pair((*am)->i1, (*am)->i2);
-      ami = active_matches_uniq.find(akey);
-      //n1 += 1;
-      if (ami==active_matches_uniq.end()) {
-          active_matches_uniq[akey] = (*am)->weight;
-        //n2 += 1;
-      } else if(ami->second < (*am)->weight){
-          ami->second = (*am)->weight;
-      }
-
-  }
-  cerr << delEdge.size() << " " << addEdge.size() << " " << active_matches.size() << " " << active_matches_uniq.size() << endl;
-    
-    for (ami = active_matches_uniq.begin(); ami!=active_matches_uniq.end();ami++){
-        akey = make_pair(ami->first.second, ami->first.first);
-        /*
-        if (active_matches_uniq.find(akey)!=active_matches_uniq.end())
-            cerr << "errrrrrr " << ami->first.first << " " << ami->first.second << endl;
-        if (ami->second > 1) cerr << "bug2 " << ami->second << endl;
-         */
-       neighborWeightCnt[ami->first.first] += ami->second;
-       neighborWeightCnt[ami->first.second] += ami->second;
-    }
-    
   float maxWeightDegree = 0;
   for (int i=0;i<m_nVertex;i++){
     if( neighborWeightCnt[i] > maxWeightDegree ) maxWeightDegree = neighborWeightCnt[i];
@@ -252,7 +235,7 @@ void FastGraphCluster::updateNeighbor(set< pair <int, int > > &delEdge, map< pai
 }
 
 
-void FastGraphCluster::updateInput(list<Pairmatch * > &active_matches)
+void FastGraphCluster::updateInput()
 {
   FiboNode *mp2;
   for (int i=0;i < m_nVertex;i++) {
