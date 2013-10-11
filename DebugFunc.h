@@ -18,6 +18,9 @@ struct ComparePair
 class DebugFunc
 {
  public:
+  DebugFunc();
+  set<float> pos_to_print;
+  vector<int> iter_to_print;
   // static,  call func without an obj
   static void printNeighbor(int index, FastGraphCluster &f);
   static int numOfLeftPairs(FastGraphCluster &f); 

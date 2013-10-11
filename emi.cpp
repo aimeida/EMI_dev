@@ -103,7 +103,7 @@ int main( int argc , char * argv[] )
   of_log << "fam file for sample identifies: " << FAM_FILE << endl;
   of_log << "Minimum cluster density: "<< MIN_CLUSTER_DENSITY << endl;
   of_log << "Minimum haplotype size: " << MIN_GRAPH_SIZE << endl;
-  of_log << "Output clusters in file: " << CLUSTER_FILE << ".clst.tmp"<< endl;
+  of_log << "Output clusters in file: " << CLUSTER_FILE << ".clst.*"<< endl;
 
   // parameter sets
   CmdOpt cmdopt;
@@ -113,7 +113,7 @@ int main( int argc , char * argv[] )
   cmdopt.min_weight = MIN_WEIGHT;
   cmdopt.dist2Weight_a = (1 - MIN_WEIGHT)/(LEN_MAX_WEIGHT-LEN_MIN_WEIGHT); 
   cmdopt.dist2Weight_b = 1 - cmdopt.dist2Weight_a * LEN_MAX_WEIGHT;   
-  cmdopt.iter_count = 2;
+  cmdopt.iter_count = 50;
   cmdopt.window_size_nfold = 2.; // at least that long to be printed (as missing pairs)
   cmdopt.continuous_empty_wins = (int)cmdopt.window_size_nfold;
   cmdopt.emi_weight = MIN_WEIGHT;
@@ -139,10 +139,16 @@ int main( int argc , char * argv[] )
   EdgeInfo * p_edge;
   long start, end; 
 
-  //for (int iter_count=1; iter_count <= cmdopt.iter_count; iter_count++) {
-  for (int iter_count=2; iter_count <= cmdopt.iter_count; iter_count++) {
+  DebugFunc* debugf = new DebugFunc();
+  cerr << "check pos "<< debugf->pos_to_print.size() << endl;
+
+  for (int iter_count=1; iter_count <= cmdopt.iter_count; iter_count++) {
+  //for (int iter_count=49; iter_count <= cmdopt.iter_count; iter_count++) {
+  
+  //for (vector<int>::iterator di = debugf->iter_to_print.begin(); di != debugf->iter_to_print.end(); di++) {
+    //    int iter_count = *di;
+    cerr << "iter " << iter_count << endl;
     float cur_pos = 0, cur_pos_start = 0;
-    start = myclock();
     list< Pairmatch * > matches, active_matches;
     map<pair<int, int>, float > uniq_matches;
 
@@ -153,24 +159,29 @@ int main( int argc , char * argv[] )
     } 
     
     if (iter_count > 1) {
-      //cerr << "size:beagle " << matches.size() << endl;
-      string emi_file = (CLUSTER_FILE + ".clst.tmp" + intToString(iter_count-1)).c_str();
-      if (!read_emi_input(emi_file, matches, cmdopt.emi_weight)){
-	   cerr << "can not open input file, "<< emi_file << endl;
-	   exit(0);
+      for (int iter_f = 1; iter_f < iter_count; iter_f++){
+	string emi_file = (CLUSTER_FILE + ".clst.tmp" + intToString(iter_f)).c_str();
+	if (!read_emi_input(emi_file, matches, cmdopt.emi_weight)){
+	  cerr << "can not open input file, "<< emi_file << endl;
+	  exit(0);
+	}
       }
-      /// about 10% missing predicted
-      // cerr << "size:all " << matches.size() << endl;
+      cerr << iter_count << ", input size: " << matches.size() << endl; /// about 10% missing 
+    } else {
+      cerr << iter_count << ", input size: " << matches.size() << endl;
     }
-    
+
     cerr << "sort input ..." << matches.size() <<  endl;    
     matches.sort(compare_pairs);
     cerr << "sort done " << matches.size() <<  endl;
 
+    start = myclock();
     FastGraphCluster* cluster = new FastGraphCluster(MIN_CLUSTER_DENSITY, MIN_GRAPH_SIZE, MIN_CLUSTER_DENSITY-0.1, m_nVertex, cmdopt.continuous_empty_wins);
     
-    ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(iter_count)).c_str());
-    ofstream fout2((CLUSTER_FILE + ".info.tmp" + intToString(iter_count)).c_str());
+    ofstream fout0((CLUSTER_FILE + ".clst." + intToString(iter_count)).c_str()); // clusters
+    ofstream fout1((CLUSTER_FILE + ".clst.tmp" + intToString(iter_count)).c_str()); // predicted missing 
+    ofstream fout2((CLUSTER_FILE + ".info.tmp" + intToString(iter_count)).c_str()); // for debug purpose
+    ofstream fout3((CLUSTER_FILE + ".checkprint" + intToString(iter_count)).c_str()); // for debug purpose
     float min_end;
     set< pair <int, int > > delEdge; 
     set< pair <int, int > >::iterator de;
@@ -215,19 +226,26 @@ int main( int argc , char * argv[] )
             } else am++;
         }
       }
-
-      cluster->updateNeighbor(delEdge, addEdge, uniq_matches, fout2);
+      
+      cluster->cur_pos = cur_pos;
+      if (debugf->pos_to_print.find(cur_pos - cmdopt.window_size)!=debugf->pos_to_print.end()){
+	cluster->updateNeighbor(delEdge, addEdge, uniq_matches, fout2, fout3, cmdopt.window_size, true); 
+       } else { 
+	cluster->updateNeighbor(delEdge, addEdge, uniq_matches, fout2, fout3, cmdopt.window_size, false);
+      }
+      
+      
       cluster->dissolve();
       delEdge.clear();
       addEdge.clear();
-      cluster->cur_pos = cur_pos;
       
       cluster->updateInput();
-      cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout1, fout2); 
+      cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout0, fout1, fout2); 
       cur_pos_start = cur_pos;
     }
   fout1.close();
   fout2.close();
+  fout3.close();
   end = myclock();  
   delete cluster;
   cerr << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;

@@ -97,7 +97,7 @@ void FastGraphCluster::refine_bound(vector <float>::iterator &ri, float &pair_st
         sum_freq -= v_min;
         nlen--;
         v_min = getmin(*ri,freqs.back());
-        //if (verbose) cerr << "hi " <<  sum_freq << " " << v_min << " " << nlen << " " << freq_th << endl;
+        //if (verbose) cout << "hi " <<  sum_freq << " " << v_min << " " << nlen << " " << freq_th << endl;
     }
     
 
@@ -123,14 +123,10 @@ void FastGraphCluster::printMissing(float window_size, float window_size_nfold, 
 //         if (i->first.first==2522 && i->first.second==2546){
 //           cerr <<"before\t" << cur_pos << "\t" << (i->second)->p_start << "\t" << (i->second)->p_end << "\t";
 //           DebugFunc::printVec(i->second->freqs);
-//         }
-//         if (i->first.first==2522 && i->first.second==2546){
-//             refine_bound(ri, pair_start, pair_end, window_size, (i->second)->p_start, (i->second)->p_end, (i->second)->freqs, freq_th, window_size_nfold, 1);}
-//         else{
-//             refine_bound(ri, pair_start, pair_end, window_size, (i->second)->p_start, (i->second)->p_end, (i->second)->freqs, freq_th, window_size_nfold);}
+//           refine_bound(ri, pair_start, pair_end, window_size, (i->second)->p_start, (i->second)->p_end, (i->second)->freqs, freq_th, window_size_nfold, 1);}
     
 	   if (pair_end > 0){
-	  ///cout << (i->second)->flag << "\t" << vertexName[(i->first).first] << "\t" << vertexName[(i->first).second] << "\t";
+	  ///fout1 << (i->second)->flag << "\t" << vertexName[(i->first).first] << "\t" << vertexName[(i->first).second] << "\t";
 	     fout1 << (i->first).first << "\t" << (i->first).second << "\t" << pair_start << "\t" << pair_end << endl;
            
 //	  for (;ri!=(i->second)->freqs.end(); ri++)
@@ -194,7 +190,7 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
     deleteClst(cc->first);
 }
 
-void FastGraphCluster::updateNeighbor(set< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, map<pair<int, int>, float > &uniq_matches, ofstream& fout2){
+void FastGraphCluster::updateNeighbor(set< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, map<pair<int, int>, float > &uniq_matches, ofstream& fout2, ofstream& fout3, float window_size, bool use_fout3){
   // init neighborWeightCnt to 0
   float *nw = neighborWeightCnt;
   for (int i=0;i < m_nVertex;i++) *nw++ = 0;
@@ -218,10 +214,22 @@ void FastGraphCluster::updateNeighbor(set< pair <int, int > > &delEdge, map< pai
     m_neighbor[(i->first).second][(i->first).first] = p_edge;
     uniq_matches[i->first] = i->second;
   }
-  cerr << cur_pos << " " << delEdge.size() << " " << addEdge.size() << " " << uniq_matches.size() << endl;  
+
+  /*
+  counts_bywin[cur_pos][0] = delEdge.size();
+  counts_bywin[cur_pos][1] = addEdge.size();
+  counts_bywin[cur_pos][2] = uniq_matches.size();
+  */
+  
+  fout2 << cur_pos << " " << delEdge.size() << " " << addEdge.size() << " " << uniq_matches.size() << endl;  
+  map<pair<int, int>, float >::iterator ami ;
+  if (use_fout3) {
+    for (ami = uniq_matches.begin(); ami!=uniq_matches.end();ami++)
+      fout3 << cur_pos-window_size << "\t" << cur_pos << "\t" << ami->first.first << "\t" << ami->first.second << endl;
+  }
   
   // update neighborWeightCnt
-  for (map<pair<int, int>, float >::iterator ami = uniq_matches.begin(); ami!=uniq_matches.end();ami++){
+  for (ami = uniq_matches.begin(); ami!=uniq_matches.end();ami++){
     //if (ami->second > 1) cerr << "bug2 " << ami->second << endl;
     neighborWeightCnt[ami->first.first] += ami->second;
     neighborWeightCnt[ami->first.second] += ami->second;
@@ -265,12 +273,11 @@ void FastGraphCluster::updateInput()
 
 }
 
-void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout1, ofstream& fout2)
+void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_th, float window_size, float window_size_nfold, ofstream& fout0, ofstream& fout1, ofstream& fout2)
 {
   set<int> result, changed;
   int freq_thn = (int) seedn * (freq_th-FREQ_ERROR);  // allow more segments to be included
   size_t n_clst_all = 0, n_clst_ext = 0;
-  //cerr << "clst size " <<  result_clst.size() << " " << cur_pos <<  endl;  // should be 0
   while (!seedArray->empty() && seedArray->top >= m_nLowerSize-1) {
     FibonacciHeap heap;	// local expanding heap
       
@@ -279,7 +286,7 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
     buildCore(i, result, heap, changed); // update clst_topindex, added to result_clst
     // make sure  with\out extension, core size stays the same.
       
-      if (heap.m_nNode > 0){ // there are nodes left after the core
+    if (heap.m_nNode > 0){ // there are nodes left after the core
       map< set <int>, int > core_ext;  // count number of times it appears
       set<int> surround;
 #ifdef DEBUGMODE
@@ -545,7 +552,6 @@ void FastGraphCluster::extendCore(set<int> &surround, set<int> &core_id, set<int
   FibonacciHeap heapExt; // Extended heap, start with start_id
   FiboNode *ptr; 
   set<int> current_heap;
-   // fout2 << "begin " << core_id.size() << " " << node_id.size() << endl;
   for (set<int>::iterator i = node_id.begin();i!=node_id.end();i++){
     ptr = m_pHeapNode[*i];
     //// fixme: use esum for now, change to wsum later if I'm not lazy

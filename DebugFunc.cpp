@@ -1,6 +1,23 @@
 // small functions for debug
 #include "DebugFunc.h"
 
+DebugFunc::DebugFunc()
+{
+//  pos_to_print.insert(1600000);
+//  pos_to_print.insert(3200000);
+//  pos_to_print.insert(5000000);
+//  pos_to_print.insert(8000000);
+
+  //float itp[] = {1, 5, 10, 50};
+  //iter_to_print(itp, itp + sizeof(itp)/sizeof(itp[0]));
+
+  iter_to_print.push_back(1);
+  iter_to_print.push_back(5);
+  iter_to_print.push_back(10);
+  iter_to_print.push_back(50);
+
+}
+
 int DebugFunc::countTransition(list<Pairmatch * > matches, float WINDOW_SIZE, float &p01, float &p10) 
 {
   list<Pairmatch * > active_matches; 

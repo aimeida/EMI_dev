@@ -42,4 +42,3 @@ bool read_beagle_input(string input_file, list<Pairmatch * > &matches, map<strin
 bool read_emi_input_byWin(string input_file, list<Pairmatch * > &matches, float pos_end, float sw_w);
 bool read_emi_input(string input_file, list<Pairmatch * > &matches, float sw_w);
 
-

@@ -128,3 +128,4 @@ bool read_emi_input(string input_file, list<Pairmatch * > &matches, float sw_w){
   input_seg.close();
   return true;
 }
+
