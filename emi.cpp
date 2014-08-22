@@ -243,9 +243,12 @@ int main( int argc , char * argv[] )
       cluster->fastClusterCore(seedn, n_overhead, freq_th, cmdopt.window_size, cmdopt.window_size_nfold, fout0, fout1, fout2); 
       cur_pos_start = cur_pos;
     }
+    
+  fout0.close();
   fout1.close();
   fout2.close();
   fout3.close();
+
   end = myclock();  
   delete cluster;
   cerr << "Time elapsed: " << std::setprecision(6) << getRuntime(&end, &start)/1000.0 << " miliseconds" << endl;

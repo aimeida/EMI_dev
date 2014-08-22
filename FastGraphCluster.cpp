@@ -190,6 +190,7 @@ void FastGraphCluster::dissolve(vector< pair <int, int > > &delEdge, vector< pai
     deleteClst(cc->first);
 }
 
+
 void FastGraphCluster::updateNeighbor(set< pair <int, int > > &delEdge, map< pair <int, int >, float > &addEdge, map<pair<int, int>, float > &uniq_matches, ofstream& fout2, ofstream& fout3, float window_size, bool use_fout3){
   // init neighborWeightCnt to 0
   float *nw = neighborWeightCnt;
@@ -283,7 +284,7 @@ void FastGraphCluster::fastClusterCore(int seedn, float n_overhead, float freq_t
       
     int i = seedArray->getMax();
     
-    buildCore(i, result, heap, changed); // update clst_topindex, added to result_clst
+    buildCore(i, result, heap, changed, fout0, window_size); // update clst_topindex, added to result_clst
     // make sure  with\out extension, core size stays the same.
       
     if (heap.m_nNode > 0){ // there are nodes left after the core
@@ -423,7 +424,7 @@ float FastGraphCluster::getWeight(float edgeWeight,float vertexWeight, float see
 }
 
 // create core clusters with density==1
-int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed)
+int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed, ofstream& fout0, float window_size)
 {
   int tEdge=0, imin, i,j,w3, nVertex = 0;
   float density,increase,w,oldWeight;
@@ -526,8 +527,13 @@ int FastGraphCluster::buildCore(int index, set<int> &result, FibonacciHeap &heap
   m_neighbor[index][maxindex]->weight -= maxWeight;
   
   if (result.size() >= m_nLowerSize){
-    for (set<int>::iterator ni=result.begin();ni!=result.end();ni++)
+    fout0 << "clst\t" << cur_pos - window_size << "\t" << cur_pos <<"\t";
+    for (set<int>::iterator ni=result.begin();ni!=result.end();ni++){
       clstID[*ni] = clst_topindex;
+      fout0 << *ni << "\t";
+      //fout0 << vertexName[*ni] << "\t";
+    }
+    fout0 << endl;
     result_clst[clst_topindex++] = new Cluster(result);
   }
   return 1;

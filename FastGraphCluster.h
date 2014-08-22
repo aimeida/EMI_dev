@@ -67,7 +67,7 @@ class FastGraphCluster
  private:
 	int continuous_empty_wins; // max continuous_empty_win allowed 
 	map <pair<int, int>, MisPair* > misPairs;
-	int buildCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed);
+	int buildCore(int index, set<int> &result, FibonacciHeap &heap, set<int> &changed, ofstream& fout0, float window_size);
 	void extendCore(set<int> &surround,set<int> &core_id, set<int> &node_id, int dn, ofstream& fout2);
 	float getWeight(float edgeweight,float vertexweight, float seedW=NULL);
 	void deleteClst(int cid, Cluster * i_clst=NULL);
